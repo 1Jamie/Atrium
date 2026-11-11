@@ -1,0 +1,20 @@
+{
+  "name": "atrium",
+  "version": "0.1.0",
+  "description": "Lotus Atrium — nested compositor / Steam launch wrapper (consumer of @lotus-gui/core)",
+  "private": true,
+  "bin": {
+    "atrium": "./bin/atrium"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "RUST_LOG=info ./bin/atrium",
+    "atrium": "RUST_LOG=info ./bin/atrium"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@lotus-gui/core": "file:../lotus/packages/lotus-core"
+  }
+}
