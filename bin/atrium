@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # atrium — gamescope-style Steam launch wrapper for Lotus Atrium
 #
-# Steam launch options:
+# Steam launch options (gamescope polarity: -w/-h nest, -W/-H output):
 #   atrium -- %command%
-#   atrium -W 1920 -H 1080 -f -- %command%
+#   atrium -w 1280 -h 720 -f -- %command%
 #
 # Game Mode (embedded gamescope): atrium is a *nested compositor* (game+HUD
 # panes inside one host window), not a mangoapp-style overlay. The host must

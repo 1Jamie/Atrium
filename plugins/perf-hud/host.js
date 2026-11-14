@@ -15,13 +15,11 @@ function readProcStat() {
   } catch (_) {
     return null;
   }
-  // First "cpu " line is the sum of all cores — already accounts for core count.
   const line = text.split('\n').find((l) => l.startsWith('cpu '));
   if (!line) return null;
   const parts = line.trim().split(/\s+/).slice(1).map(Number);
   if (parts.length < 4 || parts.some((n) => !Number.isFinite(n))) return null;
-  // user nice system idle iowait irq softirq steal guest guest_nice
-  const idle = (parts[3] || 0) + (parts[4] || 0); // idle + iowait
+  const idle = (parts[3] || 0) + (parts[4] || 0);
   const total = parts.reduce((a, b) => a + b, 0);
   return { idle, total };
 }
@@ -88,7 +86,6 @@ function findAmdgpuMem() {
       gtt_total: readU64('mem_info_gtt_total') || 0,
       gtt_used: readU64('mem_info_gtt_used') || 0,
     };
-    // Prefer the largest VRAM device (discrete if present; else APU).
     if (!best || cand.vram_total > best.vram_total) best = cand;
   }
   return best;
@@ -98,11 +95,6 @@ function bytesToMb(n) {
   return n / (1024 * 1024);
 }
 
-/**
- * APU / UMA: physical DRAM is one pool. Linux MemTotal is already after the
- * small VRAM carve-out; GTT pages sit inside MemTotal and are also charged to
- * the GPU. Split without double-counting GTT.
- */
 function sampleMemory() {
   const mi = readMeminfo();
   const gpu = findAmdgpuMem();
@@ -135,12 +127,11 @@ function sampleMemory() {
     };
   }
 
-  // Pool = OS-visible DRAM + VRAM carve-out (carve sits outside MemTotal on APUs).
   const pool = memTotal + gpu.vram_total;
   const gttUsed = Math.min(gpu.gtt_used, memUsed);
   const sysExcl = Math.max(0, memUsed - gttUsed);
   const gpuUsed = gpu.vram_used + gttUsed;
-  const poolUsed = sysExcl + gpuUsed; // == memUsed + vram_used
+  const poolUsed = sysExcl + gpuUsed;
 
   return {
     ram_used_mb: bytesToMb(poolUsed),
@@ -156,7 +147,33 @@ function sampleMemory() {
   };
 }
 
-function activate(ctx) {
+const DEFAULT_OVERLAY_FIELDS = {
+  fps: true,
+  frametime: true,
+  lows: true,
+  cpu: true,
+  ram: true,
+  pool: true,
+  surf: true,
+  graph: false,
+  hint: true,
+};
+
+const PILL_W = 300;
+
+function pillHeightFor(fields) {
+  let h = 16; // padding
+  if (fields.fps || fields.frametime) h += 36;
+  const grid =
+    fields.lows || fields.cpu || fields.ram || fields.pool || fields.surf;
+  if (grid) h += 78;
+  if (fields.pool) h += 16;
+  if (fields.hint && fields.lows) h += 14;
+  if (fields.graph) h += 40;
+  return Math.max(72, Math.min(280, h));
+}
+
+async function activate(ctx) {
   let prevCpu = readProcStat() || cpuTimesFallback();
 
   function sampleHost() {
@@ -165,12 +182,89 @@ function activate(ctx) {
     return Object.assign({ cpu_pct: cpuPct }, sampleMemory());
   }
 
+  let overlayFields = Object.assign(
+    {},
+    DEFAULT_OVERLAY_FIELDS,
+    ctx.storage.get('overlayFields', {})
+  );
+
+  function applyPillSize() {
+    const pill = ctx.getPane('pill');
+    if (!pill) return;
+    const h = pillHeightFor(overlayFields);
+    const cur = pill.raw && pill.raw._layout;
+    const x = cur?.x ?? 16;
+    const y = cur?.y ?? 64;
+    try {
+      pill.setRect(x, y, PILL_W, h);
+    } catch (_) {}
+  }
+
+  function broadcastConfig() {
+    ctx.ipc.send('hud-config', overlayFields);
+    applyPillSize();
+    // After height change, nudge the pill so the graph canvas can measure layout.
+    setTimeout(() => {
+      const pill = ctx.getPane('pill');
+      const raw = pill && pill.raw;
+      if (!raw || !raw.visible || typeof raw.executeScript !== 'function') return;
+      try {
+        raw.executeScript(
+          `window.dispatchEvent(new Event('atrium-pane-shown'));`
+        );
+      } catch (_) {}
+    }, 80);
+  }
+
+  await ctx.registerHud({
+    id: 'pill',
+    entry: 'ui/pill.html',
+    anchor: 'top-left',
+    width: PILL_W,
+    height: pillHeightFor(overlayFields),
+    defaultVisible: true,
+  });
+
+  await ctx.registerTab({
+    id: 'tab',
+    label: 'Perf',
+    order: 80,
+    entry: 'ui/index.html',
+    input: { mode: 'spatial', handlesBack: false },
+  });
+
+  ctx.onAction((act) => {
+    if (!act || !act.action) return false;
+    if (act.action === 'Nav' || act.action === 'Confirm') {
+      ctx.ipc.send('action', act);
+      return true;
+    }
+    return false;
+  });
+
+  ctx.ipc.on('hud-config', (cfg) => {
+    if (!cfg || typeof cfg !== 'object') return;
+    overlayFields = Object.assign({}, DEFAULT_OVERLAY_FIELDS, cfg);
+    ctx.storage.set('overlayFields', overlayFields);
+    broadcastConfig();
+    ctx.log('overlay fields updated');
+  });
+  ctx.ipc.on('hud-config-request', () => {
+    broadcastConfig();
+  });
+
+  // Pill/tab may mount after activate — push config once surfaces are up.
+  setTimeout(broadcastConfig, 400);
+  setTimeout(broadcastConfig, 1200);
+
   ctx.telemetry.onFrameStats((stats) => {
     ctx.ipc.send('stats', Object.assign({}, stats, sampleHost()));
   });
-  ctx.log('perf-hud active');
+  ctx.log('perf-hud active (rich overlay + customizable fields)');
 }
 
-async function deactivate() {}
+async function deactivate(ctx) {
+  if (ctx && typeof ctx.disposeAll === 'function') ctx.disposeAll();
+}
 
 module.exports = { activate, deactivate };

@@ -1,0 +1,199 @@
+/* Atrium Botanical — shared design tokens + controller focus */
+:root {
+  --atrium-bg: rgba(11, 15, 14, 0.86);
+  --atrium-bg-elevated: rgba(17, 24, 22, 0.92);
+  --atrium-bg-card: rgba(255, 255, 255, 0.03);
+  --atrium-border: rgba(52, 211, 153, 0.16);
+  --atrium-border-subtle: rgba(255, 255, 255, 0.08);
+  --atrium-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  --atrium-primary: #34d399;
+  --atrium-primary-soft: rgba(52, 211, 153, 0.14);
+  --atrium-warm: #f59e0b;
+  --atrium-warm-soft: rgba(245, 158, 11, 0.14);
+  --atrium-danger: #f87171;
+  --atrium-info: #60a5fa;
+  --atrium-text: #ecfdf5;
+  --atrium-text-muted: #94a39e;
+  --atrium-text-dim: #5c6b66;
+  --atrium-radius: 10px;
+  --atrium-radius-sm: 6px;
+  --atrium-font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --atrium-font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --atrium-glass: var(--atrium-bg);
+  --atrium-glass-border: 1px solid var(--atrium-border);
+}
+
+html, body {
+  font-family: var(--atrium-font-sans);
+  color: var(--atrium-text);
+}
+
+.atrium-num,
+.atrium-telemetry,
+.fps, .ft, .value,
+[data-atrium-num] {
+  font-family: var(--atrium-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.atrium-panel {
+  background: var(--atrium-bg);
+  border: var(--atrium-glass-border);
+  border-radius: var(--atrium-radius);
+  box-shadow: var(--atrium-highlight-top);
+}
+
+.atrium-card {
+  background: var(--atrium-bg-card);
+  border: 1px solid var(--atrium-border-subtle);
+  border-radius: var(--atrium-radius-sm);
+  box-shadow: var(--atrium-highlight-top);
+}
+
+.atrium-focusable {
+  outline: none;
+  border-radius: var(--atrium-radius-sm);
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.atrium-focusable:focus-visible,
+.atrium-focusable.is-focused {
+  outline: 2px solid var(--atrium-warm);
+  outline-offset: 2px;
+  background: var(--atrium-warm-soft);
+}
+
+.atrium-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--atrium-bg-card);
+  border: 1px solid var(--atrium-border-subtle);
+  border-radius: var(--atrium-radius-sm);
+  color: var(--atrium-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.atrium-toggle .track {
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--atrium-border-subtle);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.atrium-toggle .track::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.atrium-toggle[aria-checked="true"] .track,
+.atrium-toggle.is-on .track {
+  background: var(--atrium-primary-soft);
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.atrium-toggle[aria-checked="true"] .track::after,
+.atrium-toggle.is-on .track::after {
+  transform: translateX(14px);
+  background: var(--atrium-primary);
+}
+
+.atrium-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--atrium-border-subtle);
+  border-radius: var(--atrium-radius-sm);
+}
+
+.atrium-seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--atrium-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.atrium-seg button[aria-pressed="true"],
+.atrium-seg button.is-active {
+  background: var(--atrium-primary-soft);
+  color: var(--atrium-primary);
+  box-shadow: var(--atrium-highlight-top);
+}
+
+.atrium-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--atrium-border-subtle);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--atrium-text-muted);
+  font-family: var(--atrium-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.atrium-badge.jade {
+  color: var(--atrium-primary);
+  border-color: rgba(52, 211, 153, 0.35);
+  background: var(--atrium-primary-soft);
+}
+
+.atrium-badge.amber {
+  color: var(--atrium-warm);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: var(--atrium-warm-soft);
+}
+
+.atrium-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atrium-stepper button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--atrium-radius-sm);
+  border: 1px solid var(--atrium-border-subtle);
+  background: var(--atrium-bg-card);
+  color: var(--atrium-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.atrium-stepper .val {
+  min-width: 4.5ch;
+  text-align: center;
+  font-family: var(--atrium-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}

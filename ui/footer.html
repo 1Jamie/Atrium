@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    html, body {
+      width: 100%; height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: var(--atrium-font-sans);
+      color: var(--atrium-text);
+    }
+    body.game-mode .bar { display: none !important; }
+    .bar {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 0 12px;
+      background: linear-gradient(0deg, rgba(11,15,14,0.92), rgba(11,15,14,0.55) 75%, transparent);
+      pointer-events: none;
+    }
+    .hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--atrium-text-muted);
+      pointer-events: none;
+    }
+    .hint .alt {
+      color: var(--atrium-text-dim);
+      font-size: 9px;
+    }
+    .glyph {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 4px;
+      font-family: var(--atrium-font-mono);
+      font-size: 9px;
+      font-weight: 800;
+      border: 1px solid var(--atrium-border-subtle);
+      background: rgba(0,0,0,0.45);
+      color: var(--atrium-text);
+    }
+    .glyph.jade { color: #052e1c; background: var(--atrium-primary); border-color: transparent; }
+    .glyph.coral { color: #3f0d0d; background: #f87171; border-color: transparent; }
+    .glyph.blue { color: #0b1e3a; background: #60a5fa; border-color: transparent; }
+    .glyph.wide { min-width: 34px; }
+  </style>
+</head>
+<body class="game-mode">
+  <div class="bar" id="bar"></div>
+  <script>
+    const bar = document.getElementById('bar');
+    let mode = 'game';
+    let footer = [];
+
+    function glyphEl(g) {
+      const el = document.createElement('span');
+      el.className = 'glyph';
+      const map = {
+        a: { t: 'A', c: 'jade' },
+        b: { t: 'B', c: 'coral' },
+        x: { t: 'X', c: 'blue' },
+        y: { t: 'Y', c: '' },
+        lb_rb: { t: 'LB/RB', c: 'wide' },
+        start_select: { t: 'Start+Sel', c: 'wide' },
+        dpad: { t: 'D-Pad', c: 'wide' },
+      };
+      const m = map[g] || { t: String(g || '').toUpperCase(), c: '' };
+      el.textContent = m.t;
+      if (m.c) el.classList.add(m.c);
+      return el;
+    }
+
+    function render() {
+      document.body.classList.toggle('game-mode', mode === 'game');
+      bar.innerHTML = '';
+      if (mode === 'game') return;
+      for (const h of footer) {
+        const wrap = document.createElement('div');
+        wrap.className = 'hint';
+        wrap.appendChild(glyphEl(h.glyph || h.keys));
+        const lab = document.createElement('span');
+        lab.textContent = h.label || '';
+        wrap.appendChild(lab);
+        if (h.alt) {
+          const alt = document.createElement('span');
+          alt.className = 'alt';
+          alt.textContent = h.alt;
+          wrap.appendChild(alt);
+        }
+        bar.appendChild(wrap);
+      }
+    }
+
+    window.addEventListener('atrium-shell-chrome', (e) => {
+      const d = e.detail || {};
+      if (d.mode) mode = d.mode;
+      if (Array.isArray(d.footer)) footer = d.footer;
+      render();
+    });
+
+    try {
+      const ipc = window.lotus?.ipc || window.lotus;
+      if (ipc && typeof ipc._connectWs === 'function') ipc._connectWs();
+    } catch (e) {}
+    render();
+  </script>
+</body>
+</html>

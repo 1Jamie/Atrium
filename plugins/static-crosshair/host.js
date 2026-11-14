@@ -15,21 +15,19 @@ function centerRect(win) {
 
 async function activate(ctx) {
   const win = ctx.shell.win;
-  const r = win ? centerRect(win) : { x: 608, y: 328, width: SIZE, height: SIZE };
-  await ctx.createSurfacePane('main', {
+  await ctx.registerHud({
+    id: 'main',
     entry: 'ui/index.html',
-    defaultRect: r,
-    layer: 'hud',
-    visibility: 'always',
-    interactive: 'never',
-    reposition(pane, w) {
-      const next = centerRect(w);
-      pane.setRect(next.x, next.y, next.width, next.height);
-    },
+    width: SIZE,
+    height: SIZE,
+    defaultVisible: true,
+    layoutRect: (w) => centerRect(w),
   });
-  ctx.log('static-crosshair active');
+  ctx.log('static-crosshair active (registerHud)');
 }
 
-async function deactivate() {}
+async function deactivate(ctx) {
+  if (ctx && typeof ctx.disposeAll === 'function') ctx.disposeAll();
+}
 
 module.exports = { activate, deactivate };

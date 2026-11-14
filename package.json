@@ -7,6 +7,10 @@
     "atrium": "./bin/atrium"
   },
   "main": "main.js",
+  "exports": {
+    "./sdk": "./lib/plugin_sdk.js"
+  },
+  "types": "./lib/plugin_sdk.d.ts",
   "scripts": {
     "start": "RUST_LOG=info ./bin/atrium",
     "atrium": "RUST_LOG=info ./bin/atrium"

@@ -18,6 +18,7 @@ const DISCORDO = path.join(os.homedir(), '.local', 'bin', 'discordo');
 const TOP_CHROME = 56;
 const PREFLIGHT_MS = 1500;
 const EARLY_EXIT_MS = 3000;
+const APP_PANE_ID = 'plugin:discord-sidecar:app';
 
 function discordRect(win) {
   return rightDrawerRect(win, {
@@ -47,19 +48,12 @@ function hostSpawn(bin, args) {
   return null;
 }
 
-/**
- * Launch ptyxis in standalone mode (-s). Without -s a background Ptyxis D-Bus
- * server can steal the argv and drop the caller's spawn environment (including
- * DISCORDO_TOKEN). Token must live in the nest spawn-env bag, never on cmdline.
- */
 function discordoLaunch() {
   const term = String(process.env.ATRIUM_DISCORD_TERM || 'ptyxis').toLowerCase();
   if (term.includes('weston')) {
     const weston = hostSpawn('/usr/bin/weston-terminal', [`--shell=${DISCORDO}`]);
     if (weston) return weston;
   }
-  // No `env KEY=VAL` argv — UTF-8 + token come from createExternalPane env.
-  // --fullscreen: ask Ptyxis/Adwaita to drop CSD chrome; nest still sizes to the pane.
   const ptyxisArgs = ['-s', '--fullscreen', '-T', 'Discord', '--', DISCORDO];
   const ptyxis = hostSpawn('/usr/bin/ptyxis', ptyxisArgs);
   if (ptyxis) return ptyxis;
@@ -93,10 +87,8 @@ async function preflightToken(token) {
     if (res.status === 401 || res.status === 403) {
       return { ok: false, unauthorized: true };
     }
-    // 2xx or unexpected non-auth failures: keep vault (caller may still spawn).
     return { ok: res.ok, unauthorized: false, status: res.status };
   } catch (_) {
-    // Network timeout / DNS — do not wipe the vault.
     return { ok: true, unauthorized: false, networkError: true };
   } finally {
     clearTimeout(timer);
@@ -105,30 +97,16 @@ async function preflightToken(token) {
 
 async function activate(ctx) {
   const win = ctx.shell.win;
-  const r = discordRect(win);
 
   if (!fs.existsSync(DISCORDO)) {
     ctx.log(`discordo missing at ${DISCORDO}`);
   }
 
   let authSession = null;
-  let appSpawnedAt = 0;
   let ensuring = null;
   let suppressExitHandler = false;
-
-  const authPane = await ctx.createSurfacePane('auth', {
-    entry: 'ui/auth.html',
-    defaultRect: r,
-    layer: 'drawer',
-    zIndex: 650,
-    visibility: 'overlay-only',
-    interactive: 'overlay-only',
-    reposition(p, w) {
-      const next = discordRect(w);
-      p.setRect(next.x, next.y, next.width, next.height);
-    },
-  });
-  authPane.setVisible(false);
+  let authTabDisp = null;
+  let chatPaneDisp = null;
 
   function sendAuth(channel, data) {
     ctx.ipc.send(channel, data);
@@ -139,6 +117,68 @@ async function activate(ctx) {
       authSession.stop({ silent: true });
       authSession = null;
     }
+  }
+
+  async function ensureAuthTab() {
+    if (ctx.getPane('auth')) return ctx.getPane('auth');
+    authTabDisp = await ctx.registerTab({
+      id: 'auth',
+      label: 'Sign in',
+      order: 5,
+      entry: 'ui/auth.html',
+      input: { mode: 'spatial', handlesBack: true },
+      layoutRect: (w) => discordRect(w),
+      onFocusChange(focused) {
+        if (focused) startAuthSession();
+        else stopAuthSession();
+      },
+    });
+    return ctx.getPane('auth');
+  }
+
+  async function ensureAppPane(token) {
+    if (ctx.getPane('app')) return ctx.getPane('app');
+    const launch = discordoLaunch();
+    ctx.log(`discord pane command: ${launch.command} ${launch.args.join(' ')}`);
+    await ctx.createExternalPane('app', {
+      command: launch.command,
+      args: launch.args,
+      env: spawnEnv(token),
+      defaultRect: discordRect(win),
+      resizable: {
+        edges: ['left', 'bottom'],
+        anchor: 'top-right',
+        minWidth: 280,
+        minHeight: 120,
+      },
+      layer: 'drawer',
+      visibility: 'overlay-only',
+      interactive: 'overlay-only',
+      dbus: {
+        notifications: 'mirror',
+        notificationApps: ['discordo', 'Discord', 'discord', 'com.discordapp.Discord'],
+      },
+      reposition(p, w) {
+        const next = discordRect(w);
+        p.setRect(next.x, next.y, next.width, next.height);
+      },
+    });
+    return ctx.getPane('app');
+  }
+
+  async function ensureChatDock(token) {
+    if (ctx.shell.getDockSlot('discord-sidecar:app')) {
+      await ensureAppPane(token);
+      return;
+    }
+    chatPaneDisp = await ctx.registerPane({
+      id: 'app',
+      dockEntry: { label: 'Chat', order: 10 },
+      input: { mode: 'raw' },
+      async ensure() {
+        return ensureAppPane(token || readToken());
+      },
+    });
   }
 
   async function startAuthSession() {
@@ -170,7 +210,7 @@ async function activate(ctx) {
         writeToken(token);
         sendAuth('auth-done', {});
         sendAuth('auth-status', { text: 'Signed in', kind: 'ok' });
-        await showDiscordo(token);
+        await handoffToChat(token);
       } catch (e) {
         sendAuth('auth-error', { message: e.message || String(e) });
       }
@@ -185,72 +225,38 @@ async function activate(ctx) {
     session.start();
   }
 
-  function hideAuth() {
+  /**
+   * Auth success: register/show Chat first, then dispose auth tab so
+   * dock clamp lands on Chat (never OOB / dead surface).
+   */
+  async function handoffToChat(token) {
     stopAuthSession();
-    try {
-      authPane.setVisible(false);
-    } catch (_) {}
-  }
-
-  function showAuthUi() {
-    const app = ctx.getPane('app');
-    if (app) {
-      try {
-        app.setVisible(false);
-      } catch (_) {}
+    await ensureChatDock(token);
+    await ensureAppPane(token);
+    await ctx.shell.selectDockSlot('discord-sidecar:app');
+    if (authTabDisp) {
+      authTabDisp.dispose();
+      authTabDisp = null;
     }
-    try {
-      authPane.setVisible(true);
-    } catch (_) {}
+  }
+
+  async function showAuthUi() {
+    await ensureAuthTab();
+    await ctx.shell.selectDockSlot('discord-sidecar:auth');
     sendAuth('auth-status', { text: 'Preparing QR…' });
-    startAuthSession();
-  }
-
-  async function ensureAppPane(token) {
-    if (ctx.getPane('app')) return ctx.getPane('app');
-    const launch = discordoLaunch();
-    ctx.log(`discord pane command: ${launch.command} ${launch.args.join(' ')}`);
-    await ctx.createExternalPane('app', {
-      rawPaneId: 'discord',
-      command: launch.command,
-      args: launch.args,
-      env: spawnEnv(token),
-      defaultRect: discordRect(win),
-      resizable: {
-        edges: ['left', 'bottom'],
-        anchor: 'top-right',
-        minWidth: 280,
-        minHeight: 120,
-      },
-      layer: 'drawer',
-      visibility: 'overlay-only',
-      interactive: 'overlay-only',
-      dbus: {
-        notifications: 'mirror',
-        notificationApps: ['discordo', 'Discord', 'discord', 'com.discordapp.Discord'],
-      },
-      reposition(p, w) {
-        const next = discordRect(w);
-        p.setRect(next.x, next.y, next.width, next.height);
-      },
-    });
-    appSpawnedAt = Date.now();
-    return ctx.getPane('app');
-  }
-
-  async function showDiscordo(token) {
-    hideAuth();
-    const app = await ensureAppPane(token);
-    app.setVisible(true);
   }
 
   async function destroyApp() {
-    // Terminating the child races the wait-thread nest:external-exit — ignore it.
     suppressExitHandler = true;
-    if (ctx.getPane('app')) {
+    if (chatPaneDisp) {
+      chatPaneDisp.dispose();
+      chatPaneDisp = null;
+    } else if (ctx.getPane('app')) {
       ctx.destroyPane('app');
+      try {
+        ctx.shell.removeDockSlot('discord-sidecar:app');
+      } catch (_) {}
     }
-    appSpawnedAt = 0;
     setTimeout(() => {
       suppressExitHandler = false;
     }, 750);
@@ -283,11 +289,12 @@ async function activate(ctx) {
       }
 
       if (!token) {
-        showAuthUi();
+        await showAuthUi();
         return false;
       }
 
-      await showDiscordo(token);
+      await ensureChatDock(token);
+      await ctx.shell.selectDockSlot('discord-sidecar:app');
       return true;
     })().finally(() => {
       ensuring = null;
@@ -296,29 +303,54 @@ async function activate(ctx) {
   }
 
   ctx.ipc.on('auth-start', () => {
-    if (!authPane.visible) return;
+    const auth = ctx.getPane('auth');
+    if (!auth || !auth.visible) return;
     startAuthSession();
   });
   ctx.ipc.on('auth-cancel', () => {
-    hideAuth();
+    stopAuthSession();
+    if (authTabDisp) {
+      authTabDisp.dispose();
+      authTabDisp = null;
+    } else if (ctx.getPane('auth')) {
+      ctx.destroyPane('auth');
+      try {
+        ctx.shell.removeDockSlot('discord-sidecar:auth');
+      } catch (_) {}
+    }
   });
 
+  // F9 / dock: open Chat if vaulted, else auth tab.
   ctx._onTogglePane = async (localId) => {
     if (localId !== 'app' && localId !== 'auth') return;
-    const app = ctx.getPane('app');
-    const authVisible = !!authPane.visible;
-    const appVisible = !!(app && app.visible);
-
-    if (appVisible || authVisible) {
-      hideAuth();
-      if (app) app.setVisible(false);
+    const chatKey = 'discord-sidecar:app';
+    const authKey = 'discord-sidecar:auth';
+    if (localId === 'auth') {
+      await showAuthUi();
+      return;
+    }
+    const chatVisible =
+      ctx.shell.mode !== 'game' &&
+      ctx.shell.getDockSlot(chatKey) &&
+      ctx.getPane('app') &&
+      ctx.getPane('app').visible;
+    const authVisible = ctx.getPane('auth') && ctx.getPane('auth').visible;
+    if (chatVisible || authVisible) {
+      if (ctx.getPane('app')) ctx.getPane('app').setVisible(false);
+      stopAuthSession();
+      if (ctx.getPane('auth')) ctx.getPane('auth').setVisible(false);
       return;
     }
     await ensureDiscord();
   };
 
+  // Pre-register Chat dock when token already exists so F9 / dock work immediately.
+  if (readToken()) {
+    ensureChatDock(readToken()).catch((e) => ctx.log('chat dock seed failed:', e.message));
+  }
+
   const onExternalExit = (payload) => {
-    if (!payload || payload.pane_id !== 'discord') return;
+    if (!payload || (payload.pane_id !== APP_PANE_ID && payload.pane_id !== 'app')) return;
     if (suppressExitHandler) return;
     const life = Number(payload.lifetime_ms) || 0;
     const code = Number(payload.code);
@@ -326,23 +358,31 @@ async function activate(ctx) {
     if (life > 0 && life < EARLY_EXIT_MS && code !== 0) {
       ctx.log('early non-zero exit — clearing vault and showing QR');
       clearToken();
-      destroyApp().then(() => {
-        if (ctx.shell.mode === 'game') ctx.shell.setMode('overlay');
-        showAuthUi();
-      });
+      destroyApp().then(() => showAuthUi());
     } else {
-      // Child gone — drop handle so next show respawns with current vault token.
       destroyApp();
     }
   };
   ctx.shell.on('nest:external-exit', onExternalExit);
   ctx._offExternalExit = () => ctx.shell.off('nest:external-exit', onExternalExit);
 
-  ctx.log('discord-sidecar active (QR auth bridge; pane id=discord for F9)');
+  ctx.onAction((action) => {
+    if (action && action.action === 'Back') {
+      const auth = ctx.getPane('auth');
+      if (auth && auth.visible) {
+        stopAuthSession();
+        return true;
+      }
+    }
+    return false;
+  });
+
+  ctx.log('discord-sidecar active (auth tab → chat pane dock)');
 }
 
 async function deactivate(ctx) {
   if (ctx && typeof ctx._offExternalExit === 'function') ctx._offExternalExit();
+  if (ctx && typeof ctx.disposeAll === 'function') ctx.disposeAll();
 }
 
 module.exports = { activate, deactivate };

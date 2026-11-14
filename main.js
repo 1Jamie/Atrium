@@ -2,9 +2,10 @@
 /**
  * Lotus Atrium — nested Wayland compositor (gamescope-style Steam wrapper).
  *
- * Steam launch options:
+ * Steam launch options (gamescope flag polarity):
  *   atrium -- %command%
- *   atrium -W 1920 -H 1080 -f -- %command%
+ *   atrium -w 1280 -h 720 -f -- %command%
+ *   atrium -w 1280 -h 720 -W 1920 -H 1080 -- %command%
  *
  * Keys: F12 game↔overlay, F9 Discord, F11 fullscreen
  * Plugins: ~/.config/lotus-atrium/plugins (+ in-repo defaults)
@@ -21,13 +22,18 @@ function usage(exitCode = 0) {
 
   atrium [options] -- <command> [args...]
 
-Options:
-  -W, -H <n>               Nested game size (default 1920x1080)
-  -w, -h <n>               Lotus window size override
+Options (same polarity as gamescope):
+  -w, -h <n>               Nested game size (default 1920x1080)
+  -W, -H <n>               Output / host window size
   -f, --fullscreen         Start lotus window fullscreen
   -r, --refresh <Hz>       Nested refresh hint
   --discord / --no-discord Discord sidecar plugin (default: on)
   --hud                    Start in overlay input mode
+  --upscale off|sgsr|fsr1  Host upscaler (overrides per-game profile)
+  --sharpen rcas|off       Optional RCAS after upscale/bilinear
+  --sgsr-threshold <n>     SGSR edge threshold (0–1 or 0–255)
+  --sgsr-sharpness <n>     SGSR edge sharpness (default 2)
+  --rcas-sharpness <n>     RCAS stops (0=max, default 0.2)
   --help                   Show this help
 
 Keys: F12 game↔overlay (always) · F9 Discord / F10 HUD / F11 fullscreen (overlay only)
@@ -128,27 +134,28 @@ function parseArgs(argv) {
         out.fullscreen = true;
         continue;
       }
-      if (a === '-W' || a === '--game-width') {
+      // gamescope: -w/-h = nested game, -W/-H = output/host
+      if (a === '-w' || a === '--nested-width' || a === '--game-width') {
         out.gameWidth = takeNum(i, a);
         out.sizeExplicit = true;
-        out.sizeSource = out.sizeSource === '-H' ? '-W/-H' : '-W';
+        out.sizeSource = out.sizeSource === '-h' ? '-w/-h' : '-w';
         i++;
         continue;
       }
-      if (a === '-H' || a === '--game-height') {
+      if (a === '-h' || a === '--nested-height' || a === '--game-height') {
+        // atrium uses --help for help (gamescope-compatible -h)
         out.gameHeight = takeNum(i, a);
         out.sizeExplicit = true;
-        out.sizeSource = out.sizeSource === '-W' ? '-W/-H' : '-H';
+        out.sizeSource = out.sizeSource === '-w' ? '-w/-h' : '-h';
         i++;
         continue;
       }
-      if (a === '-w' || a === '--width') {
+      if (a === '-W' || a === '--output-width' || a === '--width') {
         out.width = takeNum(i, a);
         i++;
         continue;
       }
-      if (a === '-h' || a === '--height') {
-        // careful: -h is also help in some CLIs; atrium uses --help
+      if (a === '-H' || a === '--output-height' || a === '--height') {
         out.height = takeNum(i, a);
         i++;
         continue;
@@ -156,6 +163,34 @@ function parseArgs(argv) {
       if (a === '-r' || a === '--refresh') {
         out.refreshHz = takeNum(i, a);
         i++;
+        continue;
+      }
+      if (a === '--upscale') {
+        out.upscale = raw[++i];
+        continue;
+      }
+      if (a === '--sharpen') {
+        out.sharpen = raw[++i];
+        continue;
+      }
+      if (a === '--sgsr-threshold') {
+        out.sgsrThreshold = raw[++i];
+        continue;
+      }
+      if (a === '--sgsr-sharpness') {
+        out.sgsrSharpness = raw[++i];
+        continue;
+      }
+      if (a === '--sgsr-edge-direction') {
+        out.sgsrEdgeDirection = raw[++i] !== '0' && raw[i] !== 'off';
+        continue;
+      }
+      if (a === '--no-sgsr-edge-direction') {
+        out.sgsrEdgeDirection = false;
+        continue;
+      }
+      if (a === '--rcas-sharpness') {
+        out.rcasSharpness = raw[++i];
         continue;
       }
       if (a.startsWith('-')) {
@@ -182,7 +217,7 @@ function parseArgs(argv) {
   }
 
   // Host window size ≠ nested game size. In Game Mode the display/root is the
-  // host; Steam WIDTH/HEIGHT (or -W/-H) only size the nest / SGSR source.
+  // host; -w/-h (and Steam WIDTH/HEIGHT) size the nest / upscale source.
   if (!out.width) {
     out.width = out.gameMode ? 1920 : out.gameWidth;
   }

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atrium Status</title>
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: var(--atrium-font-sans);
+      color: var(--atrium-text);
+    }
+    body.game-mode .chrome { display: none !important; }
+    .chrome {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: max-content;
+      max-width: 100%;
+      height: auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 6px 10px;
+      background: var(--atrium-bg);
+      border: 1px solid var(--atrium-border);
+      border-radius: var(--atrium-radius);
+      box-shadow: var(--atrium-highlight-top);
+      pointer-events: none;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      min-height: 22px;
+      width: max-content;
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body class="game-mode">
+  <div class="chrome" id="chrome">
+    <div class="status-row" id="statusRow"></div>
+  </div>
+  <script>
+    const statusRowEl = document.getElementById('statusRow');
+    let mode = 'game';
+    let status = {};
+
+    function lotusIpc() {
+      return window.lotus?.ipc || window.lotus || null;
+    }
+
+    function pacingLabel(policy, hz) {
+      if (!policy) return hz ? Math.round(hz) + 'Hz' : '—';
+      const p = String(policy);
+      const hzBit = hz && Number(hz) > 0 ? Math.round(Number(hz)) + 'Hz ' : '';
+      if (p === 'FixedVsyncLocked') return hzBit + 'FIXED';
+      if (p === 'VrrPassthrough') return 'VRR';
+      return hzBit + p;
+    }
+
+    function badge(text, tone) {
+      const el = document.createElement('span');
+      el.className = 'atrium-badge' + (tone ? ' ' + tone : '');
+      el.textContent = text;
+      return el;
+    }
+
+    function renderStatus() {
+      statusRowEl.innerHTML = '';
+      const w = status.width, h = status.height;
+      if (w && h) statusRowEl.appendChild(badge(w + '×' + h));
+      const hw = status.hostWidth, hh = status.hostHeight;
+      if (hw && hh && (hw !== w || hh !== h)) {
+        statusRowEl.appendChild(badge(hw + '×' + hh, 'jade'));
+      }
+      const pace = pacingLabel(status.pacing, status.refreshHz);
+      if (pace && pace !== '—') {
+        statusRowEl.appendChild(badge(pace, 'jade'));
+      }
+      const up = status.upscale || 'OFF';
+      statusRowEl.appendChild(badge(up, up === 'OFF' ? '' : 'amber'));
+      const clock = status.clock || '';
+      if (clock) statusRowEl.appendChild(badge(clock));
+      statusRowEl.appendChild(badge('Game · F12', 'jade'));
+    }
+
+    function reportShellMetrics() {
+      const chrome = document.getElementById('chrome');
+      const ipc = lotusIpc();
+      if (!chrome || !ipc?.send || mode === 'game') return;
+      const r = chrome.getBoundingClientRect();
+      const width = Math.ceil(r.width);
+      const height = Math.ceil(r.height);
+      if (width < 80 || height < 16) return;
+      ipc.send('atrium-shell-metrics', { kind: 'status', width, height });
+    }
+
+    function render() {
+      document.body.classList.toggle('game-mode', mode === 'game');
+      renderStatus();
+      requestAnimationFrame(() => requestAnimationFrame(reportShellMetrics));
+    }
+
+    window.addEventListener('atrium-shell-chrome', (e) => {
+      const d = e.detail || {};
+      if (d.mode) mode = d.mode;
+      if (d.status && typeof d.status === 'object') status = d.status;
+      render();
+    });
+
+    const eventSource = window.lotus?.on ? window.lotus
+      : (window.lotus?.ipc?.on ? window.lotus.ipc : null);
+    if (eventSource) {
+      eventSource.on('nest:host-upscale', (data) => {
+        if (data && data.mode) {
+          status.upscaleMode = data.mode;
+          status.upscale =
+            data.mode === 'sgsr' ? 'SGSR 1.0' : data.mode === 'fsr1' ? 'FSR 1.0' : 'OFF';
+          if (data.sharpenRcas) status.upscale += '+CAS';
+          renderStatus();
+          requestAnimationFrame(() => requestAnimationFrame(reportShellMetrics));
+        }
+      });
+      eventSource.on('nest:game-mode', (data) => {
+        if (data && data.game_mode !== undefined) {
+          mode = data.game_mode ? 'game' : 'overlay';
+          render();
+        }
+      });
+    }
+
+    try {
+      const ipc = lotusIpc();
+      if (ipc && typeof ipc._connectWs === 'function') ipc._connectWs();
+    } catch (e) {}
+    render();
+  </script>
+</body>
+</html>

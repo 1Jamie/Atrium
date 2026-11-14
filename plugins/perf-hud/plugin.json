@@ -1,24 +1,14 @@
 {
   "id": "perf-hud",
   "name": "Perf HUD",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "host": "host.js",
-  "panes": {
-    "main": {
-      "type": "surface",
-      "entry": "ui/index.html",
-      "defaultRect": { "x": 16, "y": 64, "width": 300, "height": 236 },
-      "layer": "hud",
-      "visibility": "always",
-      "interactive": "overlay-only"
-    }
-  },
   "shellButtons": [
     {
       "id": "toggle",
       "label": "HUD",
       "shortcut": "F10",
-      "action": "toggle-pane:main"
+      "action": "toggle-pane:pill"
     }
   ]
 }

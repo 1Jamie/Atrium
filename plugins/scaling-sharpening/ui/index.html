@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+    }
+    .panel {
+      height: 100%;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--atrium-bg);
+      border: var(--atrium-glass-border);
+      border-radius: var(--atrium-radius);
+      box-shadow: var(--atrium-highlight-top);
+      overflow: auto;
+    }
+    h1 {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--atrium-text-muted);
+      font-weight: 700;
+    }
+    .hint {
+      font-size: 10px;
+      color: var(--atrium-text-dim);
+      margin-top: 2px;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .section h2 {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--atrium-text);
+      letter-spacing: 0.03em;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 10px;
+      background: var(--atrium-bg-card);
+      border: 1px solid var(--atrium-border-subtle);
+      border-radius: var(--atrium-radius-sm);
+    }
+    .row label {
+      font-size: 12px;
+      color: var(--atrium-text);
+    }
+    .row .meta {
+      font-size: 10px;
+      color: var(--atrium-text-dim);
+      margin-top: 2px;
+    }
+    .sgsr-only[hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="panel atrium-panel">
+    <div>
+      <h1>Scaling &amp; Sharpening</h1>
+      <div class="hint">D-Pad navigate · A / Enter apply · changes persist per game</div>
+    </div>
+
+    <div class="section">
+      <h2>Upscaler</h2>
+      <div class="atrium-seg" id="modeSeg" role="group" aria-label="Upscaler mode">
+        <button type="button" class="atrium-focusable" data-mode="off" tabindex="0">Off</button>
+        <button type="button" class="atrium-focusable" data-mode="sgsr" tabindex="0">SGSR 1.0</button>
+        <button type="button" class="atrium-focusable" data-mode="fsr1" tabindex="0">FSR 1.0</button>
+      </div>
+    </div>
+
+    <div class="section sgsr-only" id="sgsrSection">
+      <h2>SGSR parameters</h2>
+      <button type="button" class="atrium-toggle atrium-focusable" id="edgeDir" role="switch" aria-checked="true" tabindex="0">
+        <span>Use edge direction</span>
+        <span class="track" aria-hidden="true"></span>
+      </button>
+      <div class="row">
+        <div>
+          <label>Edge threshold</label>
+          <div class="meta">0–32 / 255</div>
+        </div>
+        <div class="atrium-stepper">
+          <button type="button" class="atrium-focusable" id="thrDec" tabindex="0">−</button>
+          <span class="val atrium-num" id="thrVal">8.0</span>
+          <button type="button" class="atrium-focusable" id="thrInc" tabindex="0">+</button>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Edge sharpness</label>
+          <div class="meta">0.5–4.0</div>
+        </div>
+        <div class="atrium-stepper">
+          <button type="button" class="atrium-focusable" id="sharpDec" tabindex="0">−</button>
+          <span class="val atrium-num" id="sharpVal">2.00</span>
+          <button type="button" class="atrium-focusable" id="sharpInc" tabindex="0">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>RCAS sharpening</h2>
+      <button type="button" class="atrium-toggle atrium-focusable" id="rcasOn" role="switch" aria-checked="false" tabindex="0">
+        <span>Enable RCAS</span>
+        <span class="track" aria-hidden="true"></span>
+      </button>
+      <div class="row">
+        <div>
+          <label>Sharpness stops</label>
+          <div class="meta">0.0 = max · 1.0 = soft</div>
+        </div>
+        <div class="atrium-stepper">
+          <button type="button" class="atrium-focusable" id="rcasDec" tabindex="0">−</button>
+          <span class="val atrium-num" id="rcasVal">0.20</span>
+          <button type="button" class="atrium-focusable" id="rcasInc" tabindex="0">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let state = {
+      mode: 'off',
+      sharpenRcas: false,
+      sgsrEdgeThreshold: 8 / 255,
+      sgsrEdgeSharpness: 2,
+      sgsrUseEdgeDirection: true,
+      rcasSharpnessStops: 0.2,
+    };
+
+    function thrUnits() {
+      return Math.round(state.sgsrEdgeThreshold * 2550) / 10;
+    }
+
+    function render() {
+      document.querySelectorAll('#modeSeg button').forEach((b) => {
+        const on = b.dataset.mode === state.mode;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      document.getElementById('sgsrSection').hidden = state.mode !== 'sgsr';
+      const edge = document.getElementById('edgeDir');
+      edge.classList.toggle('is-on', !!state.sgsrUseEdgeDirection);
+      edge.setAttribute('aria-checked', state.sgsrUseEdgeDirection ? 'true' : 'false');
+      document.getElementById('thrVal').textContent = thrUnits().toFixed(1);
+      document.getElementById('sharpVal').textContent = Number(state.sgsrEdgeSharpness).toFixed(2);
+      const rcas = document.getElementById('rcasOn');
+      rcas.classList.toggle('is-on', !!state.sharpenRcas);
+      rcas.setAttribute('aria-checked', state.sharpenRcas ? 'true' : 'false');
+      document.getElementById('rcasVal').textContent = Number(state.rcasSharpnessStops).toFixed(2);
+      if (window.AtriumFocus) {
+        const focused = document.querySelector('.atrium-focusable.is-focused');
+        if (focused && focused.closest('[hidden]')) {
+          window.AtriumFocus.ensureInitial();
+        } else if (state.mode === 'sgsr') {
+          window.AtriumFocus.ensureInitial();
+        }
+      }
+    }
+
+    function push(partial) {
+      state = Object.assign({}, state, partial);
+      render();
+      if (window.AtriumPlugin) window.AtriumPlugin.send('upscale-set', partial);
+    }
+
+    document.querySelectorAll('#modeSeg button').forEach((b) => {
+      b.addEventListener('click', () => push({ mode: b.dataset.mode }));
+    });
+    document.getElementById('edgeDir').addEventListener('click', () => {
+      push({ sgsrUseEdgeDirection: !state.sgsrUseEdgeDirection });
+    });
+    document.getElementById('rcasOn').addEventListener('click', () => {
+      push({ sharpenRcas: !state.sharpenRcas });
+    });
+    document.getElementById('thrDec').addEventListener('click', () => {
+      const u = Math.max(0, thrUnits() - 1);
+      push({ sgsrEdgeThreshold: u / 255 });
+    });
+    document.getElementById('thrInc').addEventListener('click', () => {
+      const u = Math.min(32, thrUnits() + 1);
+      push({ sgsrEdgeThreshold: u / 255 });
+    });
+    document.getElementById('sharpDec').addEventListener('click', () => {
+      push({ sgsrEdgeSharpness: Math.max(0.5, +(state.sgsrEdgeSharpness - 0.1).toFixed(2)) });
+    });
+    document.getElementById('sharpInc').addEventListener('click', () => {
+      push({ sgsrEdgeSharpness: Math.min(4, +(state.sgsrEdgeSharpness + 0.1).toFixed(2)) });
+    });
+    document.getElementById('rcasDec').addEventListener('click', () => {
+      push({ rcasSharpnessStops: Math.max(0, +(state.rcasSharpnessStops - 0.05).toFixed(2)) });
+    });
+    document.getElementById('rcasInc').addEventListener('click', () => {
+      push({ rcasSharpnessStops: Math.min(1, +(state.rcasSharpnessStops + 0.05).toFixed(2)) });
+    });
+
+    function onState(cfg) {
+      if (!cfg || typeof cfg !== 'object') return;
+      state = Object.assign({}, state, cfg);
+      render();
+    }
+
+    function onAction(act) {
+      if (!window.AtriumFocus || !act) return false;
+      if (act.action === 'Nav' && act.dir) return window.AtriumFocus.move(act.dir);
+      if (act.action === 'Confirm') return window.AtriumFocus.confirm();
+      return false;
+    }
+
+    const wait = setInterval(() => {
+      if (!window.AtriumPlugin) return;
+      clearInterval(wait);
+      window.AtriumPlugin.on('upscale-state', onState);
+      window.AtriumPlugin.on('action', onAction);
+      window.AtriumPlugin.send('upscale-get', {});
+    }, 80);
+
+    window.addEventListener('plugin:scaling-sharpening:upscale-state', (e) => onState(e.detail));
+    render();
+  </script>
+</body>
+</html>

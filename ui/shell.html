@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Atrium Shell</title>
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     html, body {
@@ -11,105 +12,161 @@
       height: 100%;
       background: transparent !important;
       overflow: hidden;
-      font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-      color: #e2e8f0;
-      pointer-events: none; /* pane is only the top strip; still need buttons clickable */
+      font-family: var(--atrium-font-sans);
+      color: var(--atrium-text);
     }
-    .bar {
+    body.game-mode .chrome { display: none !important; }
+    .chrome {
       position: absolute;
       top: 0;
-      right: 0;
       left: 0;
-      height: 56px;
+      width: max-content;
+      max-width: 100%;
+      height: auto;
       display: flex;
-      justify-content: flex-end;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 6px 10px;
+      background: var(--atrium-bg);
+      border: 1px solid var(--atrium-border);
+      border-radius: var(--atrium-radius);
+      box-shadow: var(--atrium-highlight-top);
+      pointer-events: auto;
+    }
+    .dock-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      width: max-content;
+      max-width: 100%;
+    }
+    .bump {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 5px;
+      font-family: var(--atrium-font-mono);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--atrium-text-muted);
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--atrium-border-subtle);
+    }
+    .dock-slots {
+      display: flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 12px;
-      background: linear-gradient(180deg, rgba(8,12,20,0.72), rgba(8,12,20,0.25));
-      pointer-events: auto;
+      flex: 0 0 auto;
+      width: max-content;
     }
-    .btn {
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      color: #f1f5f9;
-      border-radius: 6px;
-      padding: 7px 10px;
-      font-size: 11px;
-      font-weight: 600;
+    .tab {
+      appearance: none;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--atrium-text-muted);
+      border-radius: var(--atrium-radius-sm);
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
       cursor: pointer;
-      font-family: inherit;
-      pointer-events: auto;
+      white-space: nowrap;
+      position: relative;
     }
-    .btn:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.22); }
-    .btn.active { border-color: #4ade80; color: #4ade80; }
-    /* Game focus: keep chrome out of the way; hover restores readability. */
-    body.game-mode .bar {
-      opacity: 0.22;
-      background: linear-gradient(180deg, rgba(8,12,20,0.32), rgba(8,12,20,0.05));
-      transition: opacity 0.18s ease, background 0.18s ease;
+    .tab:hover { color: var(--atrium-text); background: rgba(255,255,255,0.04); }
+    .tab.active {
+      color: var(--atrium-primary);
+      background: var(--atrium-primary-soft);
+      border-color: rgba(52, 211, 153, 0.35);
+      box-shadow: var(--atrium-highlight-top);
     }
-    body.game-mode .btn {
-      background: rgba(15, 23, 42, 0.4);
-      border-color: rgba(148, 163, 184, 0.22);
-      color: rgba(241, 245, 249, 0.75);
-    }
-    /* Hover reveal only after a real pointer enter. Game-mode grabs the cursor
-       without a mouseleave, so :hover sticks and the bar never dims again. */
-    body.game-mode:not(.chrome-dim) .bar:hover {
-      opacity: 0.88;
-      background: linear-gradient(180deg, rgba(8,12,20,0.72), rgba(8,12,20,0.25));
-    }
-    body.game-mode:not(.chrome-dim) .bar:hover .btn {
-      background: rgba(15, 23, 42, 0.9);
-      border-color: rgba(148, 163, 184, 0.35);
-      color: #f1f5f9;
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      bottom: 0;
+      height: 2px;
+      border-radius: 2px 2px 0 0;
+      background: var(--atrium-primary);
     }
   </style>
 </head>
-<body class="game-mode chrome-dim">
-  <div class="bar" id="bar"></div>
+<body class="game-mode">
+  <div class="chrome" id="chrome">
+    <div class="dock-row">
+      <span class="bump" title="Previous tab">LB</span>
+      <div class="dock-slots" id="dockSlots"></div>
+      <span class="bump" title="Next tab">RB</span>
+    </div>
+  </div>
   <script>
-    const bar = document.getElementById('bar');
+    const dockSlotsEl = document.getElementById('dockSlots');
     let mode = 'game';
-    let buttons = [];
+    let dock = [];
+    let lastDockSig = '';
 
     function lotusIpc() {
       return window.lotus?.ipc || window.lotus || null;
     }
 
-    function render() {
-      bar.innerHTML = '';
-      for (const b of buttons) {
+    function dockSignature(list) {
+      return (list || []).map((s) => s.key + '\0' + (s.label || '')).join('\n');
+    }
+
+    function renderDock() {
+      const sig = dockSignature(dock);
+      if (sig === lastDockSig) {
+        const kids = dockSlotsEl.children;
+        for (let i = 0; i < dock.length; i++) {
+          if (kids[i]) kids[i].classList.toggle('active', !!dock[i].active);
+        }
+        return;
+      }
+      lastDockSig = sig;
+      dockSlotsEl.innerHTML = '';
+      for (const s of dock) {
         const el = document.createElement('button');
         el.type = 'button';
-        el.className = 'btn';
-        el.dataset.id = b.id;
-        el.textContent = b.label || b.id;
-        if (b.id === 'mode' || b.id === 'shell:mode') {
-          el.textContent = mode === 'game' ? 'Game · F12' : 'Overlay · F12';
-          el.classList.toggle('active', mode !== 'game');
-        }
+        el.className = 'tab' + (s.active ? ' active' : '');
+        el.textContent = s.label || s.key;
         el.addEventListener('click', (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
           const ipc = lotusIpc();
-          if (ipc?.send) ipc.send('atrium-shell-button', b.id);
+          if (ipc?.send) ipc.send('atrium-shell-button', 'dock:' + s.key);
         });
-        bar.appendChild(el);
+        dockSlotsEl.appendChild(el);
       }
-      document.body.classList.toggle('game-mode', mode === 'game');
-      document.body.classList.toggle('chrome-dim', mode === 'game');
     }
 
-    bar.addEventListener('pointerenter', () => {
-      if (mode === 'game') document.body.classList.remove('chrome-dim');
-    });
+    function reportShellMetrics() {
+      const chrome = document.getElementById('chrome');
+      const ipc = lotusIpc();
+      if (!chrome || !ipc?.send || mode === 'game') return;
+      const r = chrome.getBoundingClientRect();
+      const width = Math.ceil(r.width);
+      const height = Math.ceil(r.height);
+      if (width < 80 || height < 20) return;
+      ipc.send('atrium-shell-metrics', { kind: 'dock', width, height });
+    }
+
+    function render() {
+      document.body.classList.toggle('game-mode', mode === 'game');
+      renderDock();
+      requestAnimationFrame(() => requestAnimationFrame(reportShellMetrics));
+    }
 
     window.addEventListener('atrium-shell-chrome', (e) => {
       const d = e.detail || {};
       if (d.mode) mode = d.mode;
-      if (Array.isArray(d.buttons)) buttons = d.buttons;
+      if (Array.isArray(d.dock)) dock = d.dock;
       render();
     });
 
@@ -120,8 +177,6 @@
         const ipc = lotusIpc();
         if (ipc?.send) ipc.send('atrium-forward-stats', stats);
       });
-      // Host dbus bridge pushes atrium-notify to renderer sockets; Node's
-      // shell.notify bus only hears ipcMain — forward like game-stats.
       eventSource.on('atrium-notify', (payload) => {
         const ipc = lotusIpc();
         if (ipc?.send) ipc.send('atrium-notify', payload || {});
@@ -134,10 +189,8 @@
         const ipc = lotusIpc();
         if (ipc?.send) ipc.send('atrium-notify-action', payload || {});
       });
-      eventSource.on('nest:hotkey', (data) => {
-        const ipc = lotusIpc();
-        if (ipc?.send) ipc.send('nest-hotkey', data || {});
-      });
+      // nest-hotkey / nest-controller-action arrive on Node via push_host_ipc
+      // (no Servo round-trip). Keep other nest:* channels on the renderer bus.
       eventSource.on('nest:external-exit', (data) => {
         const ipc = lotusIpc();
         if (ipc?.send) ipc.send('nest-external-exit', data || {});
@@ -162,6 +215,7 @@
       const ipc = lotusIpc();
       if (ipc && typeof ipc._connectWs === 'function') ipc._connectWs();
     } catch (e) {}
+    render();
   </script>
 </body>
 </html>

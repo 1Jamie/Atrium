@@ -2,135 +2,205 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%; height: 100%;
       background: transparent !important;
-      font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-      color: #e2e8f0;
       overflow: hidden;
     }
-    .hud {
-      margin: 0;
-      min-width: 200px;
-      max-height: 100%;
-      padding: 8px 10px;
-      background: rgba(8, 12, 20, 0.72);
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      border-radius: 7px;
+    .panel {
+      height: 100%;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 12px;
+      overflow: auto;
     }
-    .hero {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 10px;
+    .hdr h1 {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--atrium-text-muted);
+      font-weight: 700;
     }
-    .fps {
-      font-size: 30px; font-weight: 800; color: #4ade80; line-height: 1;
-      text-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
+    .hdr .hint {
+      font-size: 10px;
+      color: var(--atrium-text-dim);
+      margin-top: 4px;
+      line-height: 1.35;
     }
-    .fps.waiting { color: #64748b; font-size: 16px; font-weight: 600; }
-    .hero-right {
-      text-align: right;
-      line-height: 1.2;
-    }
-    .ft { color: #f8fafc; font-size: 12px; font-weight: 600; }
-    .unit { color: #94a3b8; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .grid {
-      margin-top: 6px;
+    .summary {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2px 12px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
     }
-    .cell { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
-    .label { color: #94a3b8; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .value { color: #f8fafc; font-size: 11px; font-weight: 600; }
-    .hint {
-      margin-top: 3px;
-      color: #64748b;
-      font-size: 8px;
-      letter-spacing: 0.02em;
-      flex-shrink: 0;
+    .summary-card {
+      padding: 10px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 72px;
+    }
+    .card-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--atrium-text-dim);
+    }
+    .card-hero {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--atrium-primary);
+    }
+    .card-hero.waiting {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--atrium-text-muted);
+    }
+    .card-sub {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--atrium-text);
+      line-height: 1.35;
+    }
+    .card-meta {
+      font-size: 10px;
+      color: var(--atrium-text-muted);
+      line-height: 1.4;
     }
     .graph {
-      margin-top: 6px;
-      height: 34px;
-      min-height: 28px;
-      flex: 1 1 auto;
-      background: rgba(15, 23, 42, 0.8); border-radius: 4px;
-      overflow: hidden; border: 1px solid rgba(255,255,255,0.06);
+      height: 56px;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid var(--atrium-border-subtle);
+      border-radius: var(--atrium-radius-sm);
+      overflow: hidden;
+      box-shadow: var(--atrium-highlight-top);
+      flex-shrink: 0;
     }
-    .hero, .grid { flex-shrink: 0; }
     canvas { width: 100%; height: 100%; display: block; }
+    .config h2 {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--atrium-text);
+      letter-spacing: 0.03em;
+    }
+    .config p {
+      font-size: 10px;
+      color: var(--atrium-text-dim);
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+    .toggles {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
   </style>
 </head>
 <body>
-  <div class="hud">
-    <div class="hero">
-      <div class="fps waiting" id="fps">—</div>
-      <div class="hero-right">
-        <div class="ft" id="ft">—</div>
-        <div class="unit">frame · ms</div>
+  <div class="panel atrium-panel">
+    <header class="hdr">
+      <h1>PERF · DIAGNOSTICS</h1>
+      <p class="hint">D-Pad / Arrows to navigate · Enter to toggle</p>
+    </header>
+
+    <div class="summary">
+      <div class="atrium-card summary-card">
+        <span class="card-label">Frame rate</span>
+        <div class="card-hero waiting atrium-num" id="fps">—</div>
+        <div class="card-meta atrium-num">
+          <span id="low1">P99 —</span>
+          <span aria-hidden="true"> · </span>
+          <span id="low01">P999 —</span>
+        </div>
+      </div>
+      <div class="atrium-card summary-card">
+        <span class="card-label">Frame · ms</span>
+        <div class="card-sub atrium-num" id="ft">—</div>
+        <div class="card-meta atrium-num" id="pacing">—</div>
+      </div>
+      <div class="atrium-card summary-card">
+        <span class="card-label">Processor</span>
+        <div class="card-sub atrium-num" id="cpu">—</div>
+        <div class="card-meta atrium-num" id="gpu">GPU —</div>
       </div>
     </div>
-    <div class="grid">
-      <div class="cell"><span class="label">P99</span><span class="value" id="low1">—</span></div>
-      <div class="cell"><span class="label">P999</span><span class="value" id="low01">—</span></div>
-      <div class="cell"><span class="label">CPU</span><span class="value" id="cpu">—</span></div>
-      <div class="cell"><span class="label">RAM</span><span class="value" id="ram">—</span></div>
-      <div class="cell" id="ramSplitRow" style="grid-column: 1 / -1; display: none">
-        <span class="label">Pool</span><span class="value" id="ramSplit">—</span>
-      </div>
-      <div class="cell" style="grid-column: 1 / -1">
-        <span class="label">Surf</span><span class="value" id="res">—</span>
-      </div>
-    </div>
-    <div class="hint">P99 / P999 = FPS of the slowest 1% / 0.1% of frames</div>
+
     <div class="graph"><canvas id="ft-canvas"></canvas></div>
+
+    <section class="config">
+      <h2>HUD pill fields</h2>
+      <p>Choose what the in-game overlay pill shows (always passthrough).</p>
+      <div class="toggles" id="toggles"></div>
+    </section>
   </div>
   <script>
+    const DEFAULT_FIELDS = {
+      fps: true,
+      frametime: true,
+      lows: true,
+      cpu: true,
+      ram: true,
+      pool: true,
+      surf: true,
+      graph: false,
+      hint: true,
+    };
+    const TOGGLE_KEYS = ['fps', 'frametime', 'lows', 'cpu', 'ram', 'pool', 'surf', 'graph'];
+    const LABELS = {
+      fps: 'FPS',
+      frametime: 'Frametime',
+      lows: 'P99 / P999',
+      cpu: 'CPU',
+      ram: 'RAM',
+      pool: 'UMA pool split',
+      surf: 'Surface / pacing',
+      graph: 'Mini graph',
+    };
+    let fields = Object.assign({}, DEFAULT_FIELDS);
+
     const fpsEl = document.getElementById('fps');
     const ftEl = document.getElementById('ft');
     const low1El = document.getElementById('low1');
     const low01El = document.getElementById('low01');
     const cpuEl = document.getElementById('cpu');
-    const ramEl = document.getElementById('ram');
-    const ramSplitRow = document.getElementById('ramSplitRow');
-    const ramSplitEl = document.getElementById('ramSplit');
-    const resEl = document.getElementById('res');
+    const gpuEl = document.getElementById('gpu');
+    const pacingEl = document.getElementById('pacing');
     const canvas = document.getElementById('ft-canvas');
     const g = canvas.getContext('2d');
     const HISTORY = 90;
     const frameHistory = new Array(HISTORY).fill(0);
+    const FT_SCALE_MS = 33.33;
+    const REF_60 = 16.67;
+    const REF_30 = 33.33;
     let hasFrames = false;
+    let ramSnapshot = { label: '—', pool: '—' };
 
     function fmtFps(n) {
       if (n == null || !Number.isFinite(Number(n))) return '—';
       return Math.round(Number(n)) + ' fps';
     }
-
     function fmtMb(mb) {
       const n = Number(mb);
       if (!Number.isFinite(n) || n < 0) return '—';
       if (n >= 1024) return (n / 1024).toFixed(1) + 'G';
       return Math.round(n) + 'M';
     }
-
     function fmtRam(usedMb, totalMb) {
       if (usedMb == null || totalMb == null) return '—';
-      const u = Number(usedMb);
       const t = Number(totalMb);
       if (!(t > 0)) return '—';
-      return fmtMb(u) + '/' + fmtMb(t);
+      return fmtMb(usedMb) + '/' + fmtMb(t);
     }
-
-    function fmtPoolSplit(stats) {
-      if (!stats || !stats.ram_uma) return null;
-      return 'sys ' + fmtMb(stats.ram_sys_mb) + ' · gpu ' + fmtMb(stats.ram_gpu_mb);
+    function fmtGpuPct(stats) {
+      if (stats.gpu_pct != null && Number.isFinite(Number(stats.gpu_pct))) {
+        return Number(stats.gpu_pct).toFixed(0) + '%';
+      }
+      return '—';
     }
 
     function resizeCanvas() {
@@ -139,6 +209,29 @@
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
+
+    function pacingLine(stats) {
+      if (!stats.width || !stats.height) return '—';
+      let s = stats.width + '×' + stats.height;
+      if (stats.refresh_hz != null && Number(stats.refresh_hz) > 0) {
+        s += ' @' + Math.round(Number(stats.refresh_hz)) + 'Hz';
+      }
+      if (stats.fps_ingest != null && Number(stats.fps_ingest) > 0) {
+        s += ' · in ' + Math.round(Number(stats.fps_ingest));
+      }
+      if (stats.commits_per_swap != null && Number(stats.commits_per_swap) > 1.05) {
+        s += ' · ×' + Number(stats.commits_per_swap).toFixed(1);
+      }
+      if (stats.pacing_policy) {
+        const p = String(stats.pacing_policy);
+        s +=
+          ' · ' +
+          (p === 'FixedVsyncLocked' ? 'Fixed' : p === 'VrrPassthrough' ? 'VRR' : p);
+      }
+      if (stats.soft_fifo) s += '+SF';
+      if (stats.hold_cadence) s += '+hold';
+      return s;
+    }
 
     function updateLiveStats(stats) {
       if (!stats) return;
@@ -154,63 +247,57 @@
         if (frameHistory.length > HISTORY) frameHistory.shift();
         hasFrames = true;
       }
-      if (stats.fps_1_low != null) low1El.textContent = fmtFps(stats.fps_1_low);
-      if (stats.fps_01_low != null) low01El.textContent = fmtFps(stats.fps_01_low);
-      if (stats.cpu_pct != null) {
-        cpuEl.textContent = Number(stats.cpu_pct).toFixed(0) + '%';
-      }
+      if (stats.fps_1_low != null) low1El.textContent = 'P99 ' + fmtFps(stats.fps_1_low);
+      if (stats.fps_01_low != null) low01El.textContent = 'P999 ' + fmtFps(stats.fps_01_low);
+      if (stats.cpu_pct != null) cpuEl.textContent = Number(stats.cpu_pct).toFixed(0) + '%';
+      gpuEl.textContent = 'GPU ' + fmtGpuPct(stats);
       if (stats.ram_used_mb != null && stats.ram_total_mb != null) {
-        ramEl.textContent = fmtRam(stats.ram_used_mb, stats.ram_total_mb);
+        ramSnapshot.label = fmtRam(stats.ram_used_mb, stats.ram_total_mb);
       }
-      const split = fmtPoolSplit(stats);
-      if (split) {
-        ramSplitRow.style.display = '';
-        ramSplitEl.textContent = split;
+      if (stats.ram_uma) {
+        ramSnapshot.pool =
+          'sys ' + fmtMb(stats.ram_sys_mb) + ' · gpu ' + fmtMb(stats.ram_gpu_mb);
       } else {
-        ramSplitRow.style.display = 'none';
+        ramSnapshot.pool = '—';
       }
-      if (stats.width && stats.height) {
-        let s = stats.width + '×' + stats.height;
-        if (stats.refresh_hz != null && Number(stats.refresh_hz) > 0) {
-          s += ' @' + Math.round(Number(stats.refresh_hz)) + 'Hz';
-        }
-        if (stats.fps_ingest != null && Number(stats.fps_ingest) > 0) {
-          s += ' · in ' + Math.round(Number(stats.fps_ingest));
-        }
-        if (stats.commits_per_swap != null && Number(stats.commits_per_swap) > 1.05) {
-          s += ' · ×' + Number(stats.commits_per_swap).toFixed(1);
-        }
-        if (stats.pacing_policy) {
-          const p = String(stats.pacing_policy);
-          s +=
-            ' · ' +
-            (p === 'FixedVsyncLocked'
-              ? 'Fixed'
-              : p === 'VrrPassthrough'
-                ? 'VRR'
-                : p);
-        }
-        if (stats.soft_fifo) s += '+SF';
-        if (stats.hold_cadence) s += '+hold';
-        resEl.textContent = s;
-      }
+      pacingEl.textContent = pacingLine(stats);
+    }
+
+    function drawRefLine(yFrac, color) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const y = h - yFrac * h;
+      g.save();
+      g.strokeStyle = color;
+      g.lineWidth = 1 * devicePixelRatio;
+      g.setLineDash([4 * devicePixelRatio, 4 * devicePixelRatio]);
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(w, y);
+      g.stroke();
+      g.restore();
     }
 
     let rafPending = false;
     function renderGraph() {
       rafPending = false;
-      const w = canvas.width, h = canvas.height;
+      const w = canvas.width;
+      const h = canvas.height;
       g.clearRect(0, 0, w, h);
+      drawRefLine(REF_60 / FT_SCALE_MS, '#34d399');
+      drawRefLine(REF_30 / FT_SCALE_MS, '#f59e0b');
       if (hasFrames) {
-        g.strokeStyle = '#38bdf8';
+        g.strokeStyle = '#34d399';
         g.lineWidth = 1.5 * devicePixelRatio;
+        g.setLineDash([]);
         g.beginPath();
         const step = w / (HISTORY - 1);
         for (let i = 0; i < frameHistory.length; i++) {
           const ft = frameHistory[i] || 0;
-          const y = h - Math.min(h, (ft / 33.3) * h);
+          const y = h - Math.min(h, (ft / FT_SCALE_MS) * h);
           const x = i * step;
-          if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+          if (i === 0) g.moveTo(x, y);
+          else g.lineTo(x, y);
         }
         g.stroke();
       }
@@ -223,16 +310,75 @@
     }
     scheduleGraph();
 
+    function pushConfig() {
+      if (window.AtriumPlugin) {
+        window.AtriumPlugin.send('hud-config', fields);
+      }
+    }
+
+    function syncToggle(btn, on) {
+      btn.classList.toggle('is-on', !!on);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    function renderToggles() {
+      const root = document.getElementById('toggles');
+      root.innerHTML = '';
+      for (const key of TOGGLE_KEYS) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'atrium-toggle atrium-focusable';
+        btn.setAttribute('role', 'switch');
+        btn.setAttribute('data-key', key);
+        btn.tabIndex = 0;
+        syncToggle(btn, !!fields[key]);
+        const label = document.createElement('span');
+        label.textContent = LABELS[key] || key;
+        const track = document.createElement('span');
+        track.className = 'track';
+        track.setAttribute('aria-hidden', 'true');
+        btn.appendChild(label);
+        btn.appendChild(track);
+        btn.addEventListener('click', () => {
+          fields[key] = !fields[key];
+          syncToggle(btn, fields[key]);
+          pushConfig();
+        });
+        root.appendChild(btn);
+      }
+    }
+
+    function onConfig(cfg) {
+      if (!cfg || typeof cfg !== 'object') return;
+      fields = Object.assign({}, DEFAULT_FIELDS, cfg);
+      renderToggles();
+    }
+
+    function onAction(act) {
+      if (!window.AtriumFocus || !act) return false;
+      if (act.action === 'Nav' && act.dir) return window.AtriumFocus.move(act.dir);
+      if (act.action === 'Confirm') return window.AtriumFocus.confirm();
+      return false;
+    }
+
     window.addEventListener('plugin:perf-hud:stats', (e) => updateLiveStats(e.detail));
+    window.addEventListener('plugin:perf-hud:hud-config', (e) => onConfig(e.detail));
     window.addEventListener('atrium-pane-shown', () => {
+      resizeCanvas();
       scheduleGraph();
     });
+
     const waitPlugin = setInterval(() => {
       if (window.AtriumPlugin) {
         clearInterval(waitPlugin);
         window.AtriumPlugin.on('stats', updateLiveStats);
+        window.AtriumPlugin.on('hud-config', onConfig);
+        window.AtriumPlugin.on('action', onAction);
+        window.AtriumPlugin.send('hud-config-request', {});
       }
     }, 100);
+
+    renderToggles();
   </script>
 </body>
 </html>
