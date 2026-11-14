@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Discord login</title>
+  <style>
+    :root {
+      --bg: #1e1f22;
+      --panel: #2b2d31;
+      --text: #f2f3f5;
+      --muted: #b5bac1;
+      --accent: #5865f2;
+      --danger: #ed4245;
+      --ok: #23a559;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.45 "gg sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+    .wrap {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 24px 20px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .status {
+      color: var(--muted);
+      min-height: 1.4em;
+      max-width: 28em;
+    }
+    .status.error { color: var(--danger); }
+    .status.ok { color: var(--ok); }
+    .qr-frame {
+      width: min(280px, 70vw);
+      aspect-ratio: 1;
+      background: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    .qr-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+    .qr-frame .placeholder {
+      color: #4e5058;
+      font-size: 13px;
+      padding: 12px;
+    }
+    .user {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+    .user.show { display: flex; }
+    .user img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #111;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 4px;
+      padding: 10px 18px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      background: var(--accent);
+    }
+    button.secondary {
+      background: #4e5058;
+    }
+    button:active { filter: brightness(0.92); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Log in with Discord Mobile</h1>
+    <p class="status" id="status">Preparing QR…</p>
+    <div class="qr-frame" id="qrFrame">
+      <div class="placeholder" id="qrPlaceholder">Waiting for code</div>
+      <img id="qrImg" alt="Discord login QR" hidden />
+    </div>
+    <div class="user" id="user">
+      <img id="avatar" alt="" />
+      <span id="username"></span>
+    </div>
+    <div class="actions">
+      <button type="button" id="retry">Retry</button>
+      <button type="button" class="secondary" id="cancel">Cancel</button>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const statusEl = document.getElementById('status');
+      const qrImg = document.getElementById('qrImg');
+      const qrPlaceholder = document.getElementById('qrPlaceholder');
+      const userEl = document.getElementById('user');
+      const avatarEl = document.getElementById('avatar');
+      const usernameEl = document.getElementById('username');
+
+      function setStatus(text, kind) {
+        statusEl.textContent = text || '';
+        statusEl.classList.remove('error', 'ok');
+        if (kind) statusEl.classList.add(kind);
+      }
+
+      function showQr(dataUrl) {
+        if (!dataUrl) {
+          qrImg.hidden = true;
+          qrPlaceholder.hidden = false;
+          return;
+        }
+        qrImg.src = dataUrl;
+        qrImg.hidden = false;
+        qrPlaceholder.hidden = true;
+      }
+
+      function bind() {
+        if (!window.AtriumPlugin) {
+          setTimeout(bind, 50);
+          return;
+        }
+        const api = window.AtriumPlugin;
+
+        api.on('auth-qr', (data) => {
+          showQr(data && data.dataUrl);
+          userEl.classList.remove('show');
+          setStatus('Scan with the Discord mobile app');
+        });
+        api.on('auth-status', (data) => {
+          if (data && data.text) setStatus(data.text, data.kind || null);
+        });
+        api.on('auth-scanned', (data) => {
+          const u = data || {};
+          const name = u.username
+            ? (u.discriminator && u.discriminator !== '0'
+                ? '@' + u.username + '#' + u.discriminator
+                : '@' + u.username)
+            : 'your account';
+          setStatus('Confirming as ' + name + ' on phone…', 'ok');
+          if (u.id) {
+            const av =
+              u.avatar
+                ? 'https://cdn.discordapp.com/avatars/' + u.id + '/' + u.avatar + '.png?size=64'
+                : 'https://cdn.discordapp.com/embed/avatars/' + (Number(u.id) % 6) + '.png';
+            avatarEl.src = av;
+            usernameEl.textContent = name;
+            userEl.classList.add('show');
+          }
+        });
+        api.on('auth-error', (data) => {
+          setStatus((data && data.message) || 'Login failed', 'error');
+        });
+        api.on('auth-done', () => {
+          setStatus('Signed in', 'ok');
+        });
+
+        document.getElementById('retry').addEventListener('click', () => {
+          userEl.classList.remove('show');
+          showQr(null);
+          setStatus('Refreshing QR…');
+          api.send('auth-start', {});
+        });
+        document.getElementById('cancel').addEventListener('click', () => {
+          api.send('auth-cancel', {});
+        });
+
+        // Auto-start when the surface is shown.
+        api.send('auth-start', {});
+        window.addEventListener('atrium-pane-shown', () => {
+          api.send('auth-start', {});
+        });
+      }
+      bind();
+    })();
+  </script>
+</body>
+</html>

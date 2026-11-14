@@ -43,10 +43,31 @@
     }
     .btn:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.22); }
     .btn.active { border-color: #4ade80; color: #4ade80; }
-    body.game-mode .bar { opacity: 0.4; }
+    /* Game focus: keep chrome out of the way; hover restores readability. */
+    body.game-mode .bar {
+      opacity: 0.22;
+      background: linear-gradient(180deg, rgba(8,12,20,0.32), rgba(8,12,20,0.05));
+      transition: opacity 0.18s ease, background 0.18s ease;
+    }
+    body.game-mode .btn {
+      background: rgba(15, 23, 42, 0.4);
+      border-color: rgba(148, 163, 184, 0.22);
+      color: rgba(241, 245, 249, 0.75);
+    }
+    /* Hover reveal only after a real pointer enter. Game-mode grabs the cursor
+       without a mouseleave, so :hover sticks and the bar never dims again. */
+    body.game-mode:not(.chrome-dim) .bar:hover {
+      opacity: 0.88;
+      background: linear-gradient(180deg, rgba(8,12,20,0.72), rgba(8,12,20,0.25));
+    }
+    body.game-mode:not(.chrome-dim) .bar:hover .btn {
+      background: rgba(15, 23, 42, 0.9);
+      border-color: rgba(148, 163, 184, 0.35);
+      color: #f1f5f9;
+    }
   </style>
 </head>
-<body class="game-mode">
+<body class="game-mode chrome-dim">
   <div class="bar" id="bar"></div>
   <script>
     const bar = document.getElementById('bar');
@@ -78,7 +99,12 @@
         bar.appendChild(el);
       }
       document.body.classList.toggle('game-mode', mode === 'game');
+      document.body.classList.toggle('chrome-dim', mode === 'game');
     }
+
+    bar.addEventListener('pointerenter', () => {
+      if (mode === 'game') document.body.classList.remove('chrome-dim');
+    });
 
     window.addEventListener('atrium-shell-chrome', (e) => {
       const d = e.detail || {};
@@ -111,6 +137,10 @@
       eventSource.on('nest:hotkey', (data) => {
         const ipc = lotusIpc();
         if (ipc?.send) ipc.send('nest-hotkey', data || {});
+      });
+      eventSource.on('nest:external-exit', (data) => {
+        const ipc = lotusIpc();
+        if (ipc?.send) ipc.send('nest-external-exit', data || {});
       });
       eventSource.on('nest:game-mode', (data) => {
         const ipc = lotusIpc();

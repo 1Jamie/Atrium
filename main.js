@@ -30,7 +30,7 @@ Options:
   --hud                    Start in overlay input mode
   --help                   Show this help
 
-Keys: F12 overlay · F9 Discord · F11 fullscreen
+Keys: F12 game↔overlay (always) · F9 Discord / F10 HUD / F11 fullscreen (overlay only)
 `);
   process.exit(exitCode);
 }
@@ -181,8 +181,14 @@ function parseArgs(argv) {
     out.args = cmd.slice(1);
   }
 
-  if (!out.width) out.width = out.gameWidth;
-  if (!out.height) out.height = out.gameHeight;
+  // Host window size ≠ nested game size. In Game Mode the display/root is the
+  // host; Steam WIDTH/HEIGHT (or -W/-H) only size the nest / SGSR source.
+  if (!out.width) {
+    out.width = out.gameMode ? 1920 : out.gameWidth;
+  }
+  if (!out.height) {
+    out.height = out.gameMode ? 1080 : out.gameHeight;
+  }
   return out;
 }
 

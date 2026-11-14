@@ -1,8 +1,14 @@
 {
   "id": "discord-sidecar",
   "name": "Discord Sidecar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "host": "host.js",
+  "panes": {
+    "auth": {
+      "entry": "ui/auth.html",
+      "type": "surface"
+    }
+  },
   "shellButtons": [
     {
       "id": "toggle",

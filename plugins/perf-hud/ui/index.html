@@ -13,41 +13,83 @@
     }
     .hud {
       margin: 0;
-      min-width: 220px;
-      padding: 10px 12px;
+      min-width: 200px;
+      max-height: 100%;
+      padding: 8px 10px;
       background: rgba(8, 12, 20, 0.72);
       border: 1px solid rgba(148, 163, 184, 0.25);
-      border-radius: 8px;
+      border-radius: 7px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
     }
-    .row { display: flex; justify-content: space-between; gap: 12px; line-height: 1.25; }
-    .label { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
-    .value { color: #f8fafc; font-size: 12px; font-weight: 600; }
+    .hero {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
     .fps {
-      font-size: 36px; font-weight: 800; color: #4ade80; line-height: 1;
+      font-size: 30px; font-weight: 800; color: #4ade80; line-height: 1;
       text-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
     }
-    .fps.waiting { color: #64748b; font-size: 18px; font-weight: 600; }
-    .meta { margin-top: 8px; display: grid; gap: 4px; }
+    .fps.waiting { color: #64748b; font-size: 16px; font-weight: 600; }
+    .hero-right {
+      text-align: right;
+      line-height: 1.2;
+    }
+    .ft { color: #f8fafc; font-size: 12px; font-weight: 600; }
+    .unit { color: #94a3b8; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .grid {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 12px;
+    }
+    .cell { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .label { color: #94a3b8; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .value { color: #f8fafc; font-size: 11px; font-weight: 600; }
+    .hint {
+      margin-top: 3px;
+      color: #64748b;
+      font-size: 8px;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
     .graph {
-      margin-top: 8px; height: 40px;
+      margin-top: 6px;
+      height: 34px;
+      min-height: 28px;
+      flex: 1 1 auto;
       background: rgba(15, 23, 42, 0.8); border-radius: 4px;
       overflow: hidden; border: 1px solid rgba(255,255,255,0.06);
     }
+    .hero, .grid { flex-shrink: 0; }
     canvas { width: 100%; height: 100%; display: block; }
   </style>
 </head>
 <body>
   <div class="hud">
-    <div class="row">
+    <div class="hero">
       <div class="fps waiting" id="fps">—</div>
-      <div class="label">FPS</div>
+      <div class="hero-right">
+        <div class="ft" id="ft">—</div>
+        <div class="unit">frame · ms</div>
+      </div>
     </div>
-    <div class="meta">
-      <div class="row"><span class="label">Frametime</span><span class="value" id="ft">—</span></div>
-      <div class="row"><span class="label">1% Low</span><span class="value" id="low1">—</span></div>
-      <div class="row"><span class="label">0.1% Low</span><span class="value" id="low01">—</span></div>
-      <div class="row"><span class="label">Surface</span><span class="value" id="res">—</span></div>
+    <div class="grid">
+      <div class="cell"><span class="label">P99</span><span class="value" id="low1">—</span></div>
+      <div class="cell"><span class="label">P999</span><span class="value" id="low01">—</span></div>
+      <div class="cell"><span class="label">CPU</span><span class="value" id="cpu">—</span></div>
+      <div class="cell"><span class="label">RAM</span><span class="value" id="ram">—</span></div>
+      <div class="cell" id="ramSplitRow" style="grid-column: 1 / -1; display: none">
+        <span class="label">Pool</span><span class="value" id="ramSplit">—</span>
+      </div>
+      <div class="cell" style="grid-column: 1 / -1">
+        <span class="label">Surf</span><span class="value" id="res">—</span>
+      </div>
     </div>
+    <div class="hint">P99 / P999 = FPS of the slowest 1% / 0.1% of frames</div>
     <div class="graph"><canvas id="ft-canvas"></canvas></div>
   </div>
   <script>
@@ -55,12 +97,41 @@
     const ftEl = document.getElementById('ft');
     const low1El = document.getElementById('low1');
     const low01El = document.getElementById('low01');
+    const cpuEl = document.getElementById('cpu');
+    const ramEl = document.getElementById('ram');
+    const ramSplitRow = document.getElementById('ramSplitRow');
+    const ramSplitEl = document.getElementById('ramSplit');
     const resEl = document.getElementById('res');
     const canvas = document.getElementById('ft-canvas');
     const g = canvas.getContext('2d');
     const HISTORY = 90;
     const frameHistory = new Array(HISTORY).fill(0);
     let hasFrames = false;
+
+    function fmtFps(n) {
+      if (n == null || !Number.isFinite(Number(n))) return '—';
+      return Math.round(Number(n)) + ' fps';
+    }
+
+    function fmtMb(mb) {
+      const n = Number(mb);
+      if (!Number.isFinite(n) || n < 0) return '—';
+      if (n >= 1024) return (n / 1024).toFixed(1) + 'G';
+      return Math.round(n) + 'M';
+    }
+
+    function fmtRam(usedMb, totalMb) {
+      if (usedMb == null || totalMb == null) return '—';
+      const u = Number(usedMb);
+      const t = Number(totalMb);
+      if (!(t > 0)) return '—';
+      return fmtMb(u) + '/' + fmtMb(t);
+    }
+
+    function fmtPoolSplit(stats) {
+      if (!stats || !stats.ram_uma) return null;
+      return 'sys ' + fmtMb(stats.ram_sys_mb) + ' · gpu ' + fmtMb(stats.ram_gpu_mb);
+    }
 
     function resizeCanvas() {
       canvas.width = Math.max(1, canvas.clientWidth * devicePixelRatio);
@@ -78,14 +149,51 @@
       }
       if (stats.frametime_ms != null && Number(stats.frametime_ms) > 0) {
         const ft = Number(stats.frametime_ms);
-        ftEl.textContent = ft.toFixed(2) + ' ms';
+        ftEl.textContent = ft.toFixed(2);
         frameHistory.push(ft);
         if (frameHistory.length > HISTORY) frameHistory.shift();
         hasFrames = true;
       }
-      if (stats.fps_1_low != null) low1El.textContent = Math.round(Number(stats.fps_1_low));
-      if (stats.fps_01_low != null) low01El.textContent = Math.round(Number(stats.fps_01_low));
-      if (stats.width && stats.height) resEl.textContent = stats.width + '×' + stats.height;
+      if (stats.fps_1_low != null) low1El.textContent = fmtFps(stats.fps_1_low);
+      if (stats.fps_01_low != null) low01El.textContent = fmtFps(stats.fps_01_low);
+      if (stats.cpu_pct != null) {
+        cpuEl.textContent = Number(stats.cpu_pct).toFixed(0) + '%';
+      }
+      if (stats.ram_used_mb != null && stats.ram_total_mb != null) {
+        ramEl.textContent = fmtRam(stats.ram_used_mb, stats.ram_total_mb);
+      }
+      const split = fmtPoolSplit(stats);
+      if (split) {
+        ramSplitRow.style.display = '';
+        ramSplitEl.textContent = split;
+      } else {
+        ramSplitRow.style.display = 'none';
+      }
+      if (stats.width && stats.height) {
+        let s = stats.width + '×' + stats.height;
+        if (stats.refresh_hz != null && Number(stats.refresh_hz) > 0) {
+          s += ' @' + Math.round(Number(stats.refresh_hz)) + 'Hz';
+        }
+        if (stats.fps_ingest != null && Number(stats.fps_ingest) > 0) {
+          s += ' · in ' + Math.round(Number(stats.fps_ingest));
+        }
+        if (stats.commits_per_swap != null && Number(stats.commits_per_swap) > 1.05) {
+          s += ' · ×' + Number(stats.commits_per_swap).toFixed(1);
+        }
+        if (stats.pacing_policy) {
+          const p = String(stats.pacing_policy);
+          s +=
+            ' · ' +
+            (p === 'FixedVsyncLocked'
+              ? 'Fixed'
+              : p === 'VrrPassthrough'
+                ? 'VRR'
+                : p);
+        }
+        if (stats.soft_fifo) s += '+SF';
+        if (stats.hold_cadence) s += '+hold';
+        resEl.textContent = s;
+      }
     }
 
     let rafPending = false;
@@ -116,11 +224,9 @@
     scheduleGraph();
 
     window.addEventListener('plugin:perf-hud:stats', (e) => updateLiveStats(e.detail));
-    // Host kicks this after hide→show so rAF + stats resume.
     window.addEventListener('atrium-pane-shown', () => {
       scheduleGraph();
     });
-    // Also listen via AtriumPlugin when injected
     const waitPlugin = setInterval(() => {
       if (window.AtriumPlugin) {
         clearInterval(waitPlugin);
