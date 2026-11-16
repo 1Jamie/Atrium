@@ -260,4 +260,4 @@ fi
 
 # Desktop path — still strip overlay from host if Steam injected it.
 atrium_strip_host_overlay_preload
-exec atrium_launch_host "$@"
+atrium_launch_host "$@"

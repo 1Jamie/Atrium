@@ -14,13 +14,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$STAGE/bin" "$STAGE/ui" "$STAGE/lib" "$STAGE/plugins"
+mkdir -p "$STAGE/bin" "$STAGE/ui" "$STAGE/lib" "$STAGE/plugins" "$STAGE/scripts"
 if [[ -d "${ROOT}/dist/app" ]]; then
   cp -a "${ROOT}/dist/app/." "$STAGE/"
 fi
 cp -a "${ROOT}/ui/." "$STAGE/ui/"
 cp -a "${ROOT}/lib/." "$STAGE/lib/"
 cp -a "${ROOT}/plugins/." "$STAGE/plugins/"
+cp -a "${ROOT}/scripts/install-plugin.js" "${ROOT}/scripts/pack-plugin.js" "$STAGE/scripts/"
 cp -a "${ROOT}/bin/atrium" "$STAGE/bin/atrium"
 chmod 755 "$STAGE/bin/atrium"
 if [[ -f "${ROOT}/main.js" ]]; then

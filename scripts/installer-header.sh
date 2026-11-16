@@ -51,7 +51,8 @@ atrium_install_symlink() {
     if atrium_symlink_owned "$link" "$prefix"; then
       rm -f "$link"
     else
-      atrium_die "refusing to replace $link (not an Atrium install)"
+      printf 'atrium-installer: leaving %s unchanged (not an Atrium install)\n' "$link" >&2
+      return 1
     fi
   fi
   ln -s "$prefix/bin/atrium" "$link"
@@ -88,7 +89,7 @@ atrium_uninstall() {
 atrium_extract() {
   dest="$1"
   mkdir -p "$dest"
-  tail -c +$((ARCHIVE_OFFSET + 1)) "$0" | tar -xJ -C "$dest"
+  tail -c +$((10#${ARCHIVE_OFFSET} + 1)) "$0" | tar -xJ -C "$dest"
 }
 
 PREFIX=$(atrium_prefix_default)
@@ -152,6 +153,6 @@ fi
 trap - EXIT
 rm -rf "$BAK"
 printf '%s\n' "$VERSION" > "$PREFIX/VERSION"
-atrium_install_symlink "$PREFIX"
+atrium_install_symlink "$PREFIX" || true
 printf 'atrium-installer: installed %s at %s\n' "$VERSION" "$PREFIX"
 exit 0
