@@ -323,6 +323,8 @@ const DEFAULT_OVERLAY_FIELDS = {
   self: true,
   /** In-game pill glass alpha (0–1). Persisted with overlay field toggles. */
   opacity: 0.42,
+  /** In-game pill. Settings toggle, not a hotkey. */
+  showPill: true,
 };
 
 function clampPillOpacity(v) {
@@ -334,6 +336,7 @@ function clampPillOpacity(v) {
 function normalizeOverlayFields(cfg) {
   const next = Object.assign({}, DEFAULT_OVERLAY_FIELDS, cfg || {});
   next.opacity = clampPillOpacity(next.opacity);
+  next.showPill = next.showPill !== false;
   return next;
 }
 
@@ -467,10 +470,15 @@ async function activate(ctx) {
 
   let overlayFields = normalizeOverlayFields(ctx.storage.get('overlayFields', {}));
 
+  let pillOverlay = null;
+
   function applyPillSize() {
     const pill = ctx.getPane('pill');
     if (!pill) return;
     const h = pillHeightFor(overlayFields);
+    // Shell owns the well rect while overlay is open — only update rest size in game mode.
+    if (pillOverlay) pillOverlay.setRestSize({ height: h });
+    if (ctx.shell.mode !== 'game') return;
     const cur = pill.raw && pill.raw._layout;
     const x = cur?.x ?? 16;
     const y = cur?.y ?? 64;
@@ -481,6 +489,9 @@ async function activate(ctx) {
 
   function broadcastConfig() {
     ctx.ipc.send('hud-config', overlayFields);
+    if (pillOverlay && typeof pillOverlay.setShown === 'function') {
+      pillOverlay.setShown(overlayFields.showPill !== false);
+    }
     applyPillSize();
     // After height change, nudge the pill so the graph canvas can measure layout.
     setTimeout(() => {
@@ -495,39 +506,32 @@ async function activate(ctx) {
     }, 80);
   }
 
+  if (process.env.ATRIUM_NO_PERF_TAB === '1') {
+    ctx.log('ATRIUM_NO_PERF_TAB=1 — skipping Perf settings tab (leak A/B)');
+  } else {
+    await ctx.registerContribution({
+      id: 'tab',
+      label: 'Perf',
+      sortKey: 80,
+      content: { kind: 'servo', entry: 'ui/index.html' },
+      input: { mode: 'pointer' },
+    });
+  }
+
   if (process.env.ATRIUM_NO_PERF_PILL === '1') {
     ctx.log('ATRIUM_NO_PERF_PILL=1 — skipping in-game HUD pill (leak A/B)');
   } else {
-    await ctx.registerHud({
+    pillOverlay = await ctx.registerGameOverlay({
       id: 'pill',
       entry: 'ui/pill.html',
       anchor: 'top-left',
       width: PILL_W,
       height: pillHeightFor(overlayFields),
-      defaultVisible: true,
+      defaultVisible: overlayFields.showPill !== false,
+      // Opening the Perf tab moves this real pill into the content well.
+      linkedContribution: process.env.ATRIUM_NO_PERF_TAB === '1' ? null : 'tab',
     });
   }
-
-  if (process.env.ATRIUM_NO_PERF_TAB === '1') {
-    ctx.log('ATRIUM_NO_PERF_TAB=1 — skipping Perf settings tab (leak A/B)');
-  } else {
-    await ctx.registerTab({
-      id: 'tab',
-      label: 'Perf',
-      order: 80,
-      entry: 'ui/index.html',
-      input: { mode: 'spatial', handlesBack: false },
-    });
-  }
-
-  ctx.onAction((act) => {
-    if (!act || !act.action) return false;
-    if (act.action === 'Nav' || act.action === 'Confirm') {
-      ctx.ipc.send('action', act);
-      return true;
-    }
-    return false;
-  });
 
   ctx.ipc.on('hud-config', (cfg) => {
     if (!cfg || typeof cfg !== 'object') return;

@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atrium Stage Footer</title>
   <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -18,108 +20,113 @@
       inset: 0;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 14px;
-      padding: 0 12px;
-      background: linear-gradient(0deg, rgba(11,15,14,0.92), rgba(11,15,14,0.55) 75%, transparent);
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 16px;
+      background: var(--atrium-bg);
+      border: 1px solid var(--atrium-accent-border);
+      border-top: 1px solid var(--atrium-border-subtle);
+      /* Square bottom — docks hang from these corners; only docks round below. */
+      border-radius: 0;
+      box-shadow: var(--atrium-highlight-top);
+      backdrop-filter: var(--atrium-blur);
+      -webkit-backdrop-filter: var(--atrium-blur);
       pointer-events: none;
+      transition: border-color var(--atrium-motion-accent);
+      animation: atrium-rise 180ms ease;
     }
-    .hint {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 10px;
+    @keyframes atrium-rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .game {
+      font-size: var(--atrium-text-secondary);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 28%;
+    }
+    .summary {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: var(--atrium-text-secondary);
       color: var(--atrium-text-muted);
-      pointer-events: none;
-    }
-    .hint .alt {
-      color: var(--atrium-text-dim);
-      font-size: 9px;
-    }
-    .glyph {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 18px;
-      height: 16px;
-      padding: 0 4px;
-      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       font-family: var(--atrium-font-mono);
-      font-size: 9px;
-      font-weight: 800;
-      border: 1px solid var(--atrium-border-subtle);
-      background: rgba(0,0,0,0.45);
-      color: var(--atrium-text);
+      font-variant-numeric: tabular-nums;
     }
-    .glyph.jade { color: #052e1c; background: var(--atrium-primary); border-color: transparent; }
-    .glyph.coral { color: #3f0d0d; background: #f87171; border-color: transparent; }
-    .glyph.blue { color: #0b1e3a; background: #60a5fa; border-color: transparent; }
-    .glyph.wide { min-width: 34px; }
+    .pace {
+      flex: 0 0 auto;
+      font-size: var(--atrium-text-secondary);
+      font-weight: 700;
+      color: var(--atrium-accent);
+      font-family: var(--atrium-font-mono);
+    }
   </style>
 </head>
-<body class="game-mode">
-  <div class="bar" id="bar"></div>
+<body class="game-mode" data-accent="perf">
+  <div class="bar" id="bar">
+    <div class="game" id="game">—</div>
+    <div class="summary" id="summary">—</div>
+    <div class="pace" id="pace">—</div>
+  </div>
   <script>
-    const bar = document.getElementById('bar');
     let mode = 'game';
-    let footer = [];
+    let status = {};
+    let game = 'game';
+    let accent = 'perf';
 
-    function glyphEl(g) {
-      const el = document.createElement('span');
-      el.className = 'glyph';
-      const map = {
-        a: { t: 'A', c: 'jade' },
-        b: { t: 'B', c: 'coral' },
-        x: { t: 'X', c: 'blue' },
-        y: { t: 'Y', c: '' },
-        lb_rb: { t: 'LB/RB', c: 'wide' },
-        start_select: { t: 'Start+Sel', c: 'wide' },
-        dpad: { t: 'D-Pad', c: 'wide' },
-        keys: { t: 'KB', c: 'wide' },
-        esc: { t: 'Esc', c: '' },
-      };
-      const m = map[g] || { t: String(g || '').toUpperCase(), c: '' };
-      el.textContent = m.t;
-      if (m.c) el.classList.add(m.c);
-      return el;
+    function pacingLabel(policy, hz) {
+      if (!policy) return hz ? Math.round(hz) + 'Hz' : '—';
+      const p = String(policy);
+      const hzBit = hz && Number(hz) > 0 ? Math.round(Number(hz)) + 'Hz ' : '';
+      if (p === 'FixedVsyncLocked') return hzBit + 'FIXED';
+      if (p === 'VrrPassthrough') return 'VRR';
+      return hzBit + p;
+    }
+
+    function scalerSummary(st) {
+      const up = st.upscale || 'OFF';
+      const gw = st.width, gh = st.height;
+      const hw = st.hostWidth, hh = st.hostHeight;
+      let res = '';
+      if (gw && gh && hw && hh && (gw !== hw || gh !== hh)) {
+        res = ` · ${gw}×${gh} to ${hw}×${hh}`;
+      } else if (gw && gh) {
+        res = ` · ${gw}×${gh}`;
+      }
+      return up + res;
     }
 
     function render() {
       document.body.classList.toggle('game-mode', mode === 'game');
-      bar.innerHTML = '';
-      if (mode === 'game') return;
-      for (const h of footer) {
-        const wrap = document.createElement('div');
-        wrap.className = 'hint';
-        wrap.appendChild(glyphEl(h.glyph || h.keys));
-        const lab = document.createElement('span');
-        lab.textContent = h.label || '';
-        wrap.appendChild(lab);
-        if (h.alt) {
-          const alt = document.createElement('span');
-          alt.className = 'alt';
-          alt.textContent = h.alt;
-          wrap.appendChild(alt);
-        }
-        bar.appendChild(wrap);
-      }
+      document.body.setAttribute('data-accent', accent || 'perf');
+      document.getElementById('game').textContent = game || '—';
+      document.getElementById('summary').textContent = scalerSummary(status);
+      document.getElementById('pace').textContent = pacingLabel(
+        status.pacing,
+        status.refreshHz
+      );
     }
 
     function onShellChrome(d) {
       d = d || {};
       if (d.mode) mode = d.mode;
-      if (Array.isArray(d.footer)) footer = d.footer;
+      if (d.status) status = d.status;
+      if (d.game) game = d.game;
+      if (d.accent) accent = d.accent;
       render();
     }
     window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
-
-    try {
-      const ipc = window.lotus?.ipc || window.lotus;
-      if (ipc && typeof ipc.on === 'function') {
-        ipc.on('atrium-shell-chrome', onShellChrome);
-      }
-      if (ipc && typeof ipc._connectWs === 'function') ipc._connectWs();
-    } catch (e) {}
+    const eventSource = window.lotus?.on
+      ? window.lotus
+      : window.lotus?.ipc?.on
+        ? window.lotus.ipc
+        : null;
+    if (eventSource) eventSource.on('atrium-shell-chrome', onShellChrome);
     render();
   </script>
 </body>

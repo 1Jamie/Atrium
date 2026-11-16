@@ -12,26 +12,51 @@
     .xh {
       position: absolute;
       left: 50%; top: 50%;
-      width: 18px; height: 18px;
-      transform: translate(-50%, -50%);
+      width: 0; height: 0;
+      --len: 8px;
+      --thick: 2px;
+      --gap: 0px;
+      --color: #fff;
+      --outline: 0 0 2px rgba(0,0,0,0.85);
     }
-    .xh::before, .xh::after {
-      content: "";
+    .arm {
       position: absolute;
-      background: rgba(255,255,255,0.85);
-      box-shadow: 0 0 2px rgba(0,0,0,0.8);
+      background: var(--color);
+      box-shadow: var(--outline);
     }
-    .xh::before { left: 8px; top: 0; width: 2px; height: 18px; }
-    .xh::after { left: 0; top: 8px; width: 18px; height: 2px; }
+    .arm.n, .arm.s { width: var(--thick); height: var(--len); left: calc(var(--thick) / -2); }
+    .arm.e, .arm.w { height: var(--thick); width: var(--len); top: calc(var(--thick) / -2); }
+    .arm.n { bottom: var(--gap); }
+    .arm.s { top: var(--gap); }
+    .arm.w { right: var(--gap); }
+    .arm.e { left: var(--gap); }
   </style>
 </head>
 <body>
-  <div class="xh" aria-hidden="true"></div>
+  <div class="xh" id="xh" aria-hidden="true">
+    <span class="arm n"></span>
+    <span class="arm e"></span>
+    <span class="arm s"></span>
+    <span class="arm w"></span>
+  </div>
   <script>
-    function centerInWindow() {
-      // Pane is small; shell will place it — host may reposition on resize via profile later.
+    const el = document.getElementById('xh');
+    function apply(cfg) {
+      if (!cfg) return;
+      el.style.setProperty('--len', (cfg.length || 8) + 'px');
+      el.style.setProperty('--thick', (cfg.thickness || 2) + 'px');
+      el.style.setProperty('--gap', (cfg.gap || 0) + 'px');
+      el.style.setProperty('--color', cfg.color || '#ffffff');
+      el.style.setProperty('--outline', cfg.outline === false ? 'none' : '0 0 2px rgba(0,0,0,0.85)');
+      el.style.display = cfg.enabled === false ? 'none' : 'block';
     }
-    centerInWindow();
+    window.addEventListener('plugin:static-crosshair:config', (e) => apply(e.detail));
+    const wait = setInterval(() => {
+      if (!window.AtriumPlugin) return;
+      clearInterval(wait);
+      window.AtriumPlugin.on('config', apply);
+      window.AtriumPlugin.send('get', {});
+    }, 100);
   </script>
 </body>
 </html>

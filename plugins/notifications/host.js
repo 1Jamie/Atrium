@@ -31,10 +31,11 @@ async function activate(ctx) {
     defaultRect: r,
     layer: 'shell',
     zIndex: 980,
-    visibility: 'always',
-    // Passive-only over the game; overlay mode can later flip interactive.
+    // Hide while the shell overlay is open so toasts never cover chrome.
+    visibility: 'game-only',
     interactive: 'never',
     reposition(pane, w) {
+      if (ctx.shell.mode !== 'game') return;
       const next = toastRect(w);
       pane.setRect(next.x, next.y, next.width, next.height);
     },
@@ -56,20 +57,15 @@ async function activate(ctx) {
     ctx.ipc.send('toast-action', payload || {});
   };
 
-  ctx.shell.on('notify', onNotify);
-  ctx.shell.on('notify-closed', onClosed);
-  ctx.shell.on('notify-action', onAction);
-  ctx._offNotify = () => {
-    ctx.shell.off('notify', onNotify);
-    ctx.shell.off('notify-closed', onClosed);
-    ctx.shell.off('notify-action', onAction);
-  };
+  ctx.subscribe('notify', onNotify);
+  ctx.subscribe('notify-closed', onClosed);
+  ctx.subscribe('notify-action', onAction);
 
   ctx.log('notifications toast surface active');
 }
 
 async function deactivate(ctx) {
-  if (ctx && typeof ctx._offNotify === 'function') ctx._offNotify();
+  if (ctx && typeof ctx.disposeAll === 'function') ctx.disposeAll();
 }
 
 module.exports = { activate, deactivate };

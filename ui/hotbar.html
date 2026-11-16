@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atrium Action Socket</title>
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    html, body {
+      width: 100%; height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: var(--atrium-font-sans);
+      color: var(--atrium-text);
+    }
+    body.game-mode .socket { display: none !important; }
+    .socket {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-end;
+      gap: 0;
+      background: var(--atrium-bg);
+      border: 1px solid var(--atrium-accent-border);
+      border-top: none;
+      border-radius: 0 0 var(--atrium-radius) var(--atrium-radius);
+      box-shadow: var(--atrium-highlight-top);
+      backdrop-filter: var(--atrium-blur);
+      -webkit-backdrop-filter: var(--atrium-blur);
+      overflow: hidden;
+      pointer-events: auto;
+      transition: border-color var(--atrium-motion-accent);
+      /* Dock stays put on panel open — no rise animation */
+    }
+    .slot {
+      appearance: none;
+      flex: 1 1 0;
+      min-height: 48px;
+      border: 0;
+      border-bottom: 1px solid var(--atrium-border-subtle);
+      background: transparent;
+      color: var(--atrium-text);
+      font: inherit;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: background 0.12s ease, transform 0.1s ease;
+    }
+    .slot:last-child { border-bottom: 0; }
+    .slot:hover { background: rgba(255,255,255,0.05); }
+    .slot:active { transform: scale(0.97); }
+    .slot.plus {
+      color: var(--atrium-accent);
+      border: 1.5px dashed var(--atrium-accent-border);
+      margin: 10px;
+      border-radius: var(--atrium-radius-pill);
+      flex: 0 0 64px;
+      min-height: 64px;
+    }
+    .slot .badge {
+      position: absolute;
+      top: 8px;
+      right: 14px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 800;
+      background: var(--atrium-accent);
+      color: #052e1c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hint {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--atrium-text-secondary);
+      color: var(--atrium-text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 650;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="game-mode" data-accent="perf">
+  <div class="socket" id="socket"></div>
+  <script>
+    const socket = document.getElementById('socket');
+    let mode = 'game';
+    let hotbar = { slots: [] };
+    let accent = 'perf';
+
+    function lotusIpc() {
+      return window.lotus?.ipc || window.lotus || null;
+    }
+
+    function render() {
+      document.body.classList.toggle('game-mode', mode === 'game');
+      document.body.setAttribute('data-accent', accent || 'perf');
+      socket.innerHTML = '';
+      const slots = Array.isArray(hotbar.slots) ? hotbar.slots.slice(0, 3) : [];
+      if (!slots.length) {
+        const hint = document.createElement('div');
+        hint.className = 'hint';
+        hint.textContent = 'Actions';
+        socket.appendChild(hint);
+      }
+      for (const s of slots) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'slot';
+        btn.title = s.label || s.id || '';
+        btn.textContent = s.icon || (s.label || '?').slice(0, 1);
+        if (s.badge != null && s.badge !== '') {
+          const b = document.createElement('span');
+          b.className = 'badge';
+          b.textContent = String(s.badge);
+          btn.appendChild(b);
+        }
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const ipc = lotusIpc();
+          if (ipc?.send) ipc.send('atrium-shell-button', 'hotbar:' + (s.id || ''));
+        });
+        socket.appendChild(btn);
+      }
+      const plus = document.createElement('button');
+      plus.type = 'button';
+      plus.className = 'slot plus';
+      plus.title = 'Actions';
+      plus.textContent = '+';
+      plus.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        const ipc = lotusIpc();
+        if (ipc?.send) ipc.send('atrium-shell-button', 'hotbar:plus');
+      });
+      socket.appendChild(plus);
+    }
+
+    function onShellChrome(d) {
+      d = d || {};
+      if (d.mode) mode = d.mode;
+      if (d.hotbar) hotbar = d.hotbar;
+      if (d.accent) accent = d.accent;
+      render();
+    }
+    window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
+    const eventSource = window.lotus?.on
+      ? window.lotus
+      : window.lotus?.ipc?.on
+        ? window.lotus.ipc
+        : null;
+    if (eventSource) eventSource.on('atrium-shell-chrome', onShellChrome);
+    render();
+  </script>
+</body>
+</html>

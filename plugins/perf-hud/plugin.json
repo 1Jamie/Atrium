@@ -2,13 +2,5 @@
   "id": "perf-hud",
   "name": "Perf HUD",
   "version": "0.3.0",
-  "host": "host.js",
-  "shellButtons": [
-    {
-      "id": "toggle",
-      "label": "HUD",
-      "shortcut": "F10",
-      "action": "toggle-pane:pill"
-    }
-  ]
+  "host": "host.js"
 }

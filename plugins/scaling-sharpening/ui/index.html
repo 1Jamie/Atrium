@@ -12,123 +12,214 @@
     }
     .panel {
       height: 100%;
-      padding: 12px 14px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      background: var(--atrium-bg);
-      border: var(--atrium-glass-border);
-      border-radius: var(--atrium-radius);
-      box-shadow: var(--atrium-highlight-top);
+      gap: 16px;
       overflow: auto;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
     }
-    h1 {
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--atrium-text-muted);
-      font-weight: 700;
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
     }
-    .hint {
-      font-size: 10px;
-      color: var(--atrium-text-dim);
-      margin-top: 2px;
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
     }
-    .section {
+    .col {
       display: flex;
       flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+    .presets {
+      display: flex;
       gap: 8px;
+      flex-wrap: wrap;
     }
-    .section h2 {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--atrium-text);
-      letter-spacing: 0.03em;
+    .presets button {
+      appearance: none;
+      min-height: 48px;
+      padding: 0 16px;
+      border-radius: var(--atrium-radius-sm);
+      border: 1px solid var(--atrium-border-subtle);
+      background: var(--atrium-bg-card);
+      color: var(--atrium-text-secondary, var(--atrium-text-muted));
+      font: inherit;
+      font-size: var(--atrium-text-secondary);
+      font-weight: 650;
+      cursor: pointer;
     }
-    .row {
+    .presets button:active { transform: scale(0.97); }
+    .pipeline {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      height: 100%;
+      min-height: 220px;
+    }
+    .pipeline .flow {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 8px 10px;
-      background: var(--atrium-bg-card);
-      border: 1px solid var(--atrium-border-subtle);
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pipe-node {
+      flex: 1 1 90px;
+      min-width: 90px;
+      padding: 12px 10px;
       border-radius: var(--atrium-radius-sm);
+      background: rgba(0,0,0,0.28);
+      border: 1px solid var(--atrium-border-subtle);
+      text-align: center;
     }
-    .row label {
-      font-size: 12px;
-      color: var(--atrium-text);
-    }
-    .row .meta {
-      font-size: 10px;
+    .pipe-node .k {
+      display: block;
+      font-size: var(--atrium-text-section);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--atrium-text-dim);
-      margin-top: 2px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .pipe-node .v {
+      display: block;
+      font-size: var(--atrium-text-secondary);
+      font-weight: 750;
+      color: var(--atrium-accent);
+      font-family: var(--atrium-font-mono);
+    }
+    .pipe-arrow {
+      color: var(--atrium-text-dim);
+      font-weight: 800;
+      flex: 0 0 auto;
     }
     .sgsr-only[hidden] { display: none !important; }
   </style>
 </head>
-<body>
-  <div class="panel atrium-panel">
-    <div>
-      <h1>Scaling &amp; Sharpening</h1>
-      <div class="hint">Click or arrows to move · Enter to apply · changes persist per game</div>
-    </div>
+<body data-accent="scaling">
+  <div class="panel atrium-panel atrium-fade-in">
+    <div class="grid">
+      <div class="col">
+        <section class="atrium-section">
+          <div class="atrium-section-title">Upscaler</div>
+          <div class="atrium-seg" id="modeSeg" role="group" aria-label="Upscaler mode">
+            <button type="button" class="atrium-focusable" data-mode="off" tabindex="0">Off</button>
+            <button type="button" class="atrium-focusable" data-mode="sgsr" tabindex="0">SGSR 1.0</button>
+            <button type="button" class="atrium-focusable" data-mode="fsr1" tabindex="0">FSR 1.0</button>
+          </div>
+        </section>
 
-    <div class="section">
-      <h2>Upscaler</h2>
-      <div class="atrium-seg" id="modeSeg" role="group" aria-label="Upscaler mode">
-        <button type="button" class="atrium-focusable" data-mode="off" tabindex="0">Off</button>
-        <button type="button" class="atrium-focusable" data-mode="sgsr" tabindex="0">SGSR 1.0</button>
-        <button type="button" class="atrium-focusable" data-mode="fsr1" tabindex="0">FSR 1.0</button>
-      </div>
-    </div>
+        <section class="atrium-section sgsr-only" id="sgsrSection">
+          <div class="atrium-section-title">SGSR parameters</div>
+          <button type="button" class="atrium-toggle atrium-focusable" id="edgeDir" role="switch" aria-checked="true" tabindex="0">
+            <span>Use edge direction</span>
+            <span class="track" aria-hidden="true"></span>
+          </button>
+          <div class="atrium-slider-row">
+            <div class="copy">
+              <strong>Edge threshold</strong>
+              <span>0–32 / 255</span>
+            </div>
+            <div class="control atrium-stepper">
+              <button type="button" class="atrium-focusable" id="thrDec" tabindex="0">−</button>
+              <span class="val atrium-num" id="thrVal">8.0</span>
+              <button type="button" class="atrium-focusable" id="thrInc" tabindex="0">+</button>
+            </div>
+          </div>
+          <div class="atrium-slider-row">
+            <div class="copy">
+              <strong>Edge sharpness</strong>
+              <span>0.5–4.0</span>
+            </div>
+            <div class="control atrium-stepper">
+              <button type="button" class="atrium-focusable" id="sharpDec" tabindex="0">−</button>
+              <span class="val atrium-num" id="sharpVal">2.00</span>
+              <button type="button" class="atrium-focusable" id="sharpInc" tabindex="0">+</button>
+            </div>
+          </div>
+        </section>
 
-    <div class="section sgsr-only" id="sgsrSection">
-      <h2>SGSR parameters</h2>
-      <button type="button" class="atrium-toggle atrium-focusable" id="edgeDir" role="switch" aria-checked="true" tabindex="0">
-        <span>Use edge direction</span>
-        <span class="track" aria-hidden="true"></span>
-      </button>
-      <div class="row">
-        <div>
-          <label>Edge threshold</label>
-          <div class="meta">0–32 / 255</div>
-        </div>
-        <div class="atrium-stepper">
-          <button type="button" class="atrium-focusable" id="thrDec" tabindex="0">−</button>
-          <span class="val atrium-num" id="thrVal">8.0</span>
-          <button type="button" class="atrium-focusable" id="thrInc" tabindex="0">+</button>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>Edge sharpness</label>
-          <div class="meta">0.5–4.0</div>
-        </div>
-        <div class="atrium-stepper">
-          <button type="button" class="atrium-focusable" id="sharpDec" tabindex="0">−</button>
-          <span class="val atrium-num" id="sharpVal">2.00</span>
-          <button type="button" class="atrium-focusable" id="sharpInc" tabindex="0">+</button>
-        </div>
-      </div>
-    </div>
+        <section class="atrium-section">
+          <div class="atrium-section-title">RCAS sharpening</div>
+          <button type="button" class="atrium-toggle atrium-focusable" id="rcasOn" role="switch" aria-checked="false" tabindex="0">
+            <span>Enable RCAS</span>
+            <span class="track" aria-hidden="true"></span>
+          </button>
+          <div class="atrium-slider-row">
+            <div class="copy">
+              <strong>Sharpness stops</strong>
+              <span>0.0 = max · 1.0 = soft</span>
+            </div>
+            <div class="control atrium-stepper">
+              <button type="button" class="atrium-focusable" id="rcasDec" tabindex="0" aria-label="Decrease RCAS">−</button>
+              <div
+                class="atrium-slider atrium-focusable"
+                id="rcasSlider"
+                role="slider"
+                tabindex="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="20"
+                aria-label="RCAS sharpness stops"
+              >
+                <div class="track"><span class="fill" id="rcasFill"></span></div>
+                <div class="thumb" id="rcasThumb"></div>
+              </div>
+              <span class="val atrium-num" id="rcasVal">0.20</span>
+              <button type="button" class="atrium-focusable" id="rcasInc" tabindex="0" aria-label="Increase RCAS">+</button>
+            </div>
+          </div>
+        </section>
 
-    <div class="section">
-      <h2>RCAS sharpening</h2>
-      <button type="button" class="atrium-toggle atrium-focusable" id="rcasOn" role="switch" aria-checked="false" tabindex="0">
-        <span>Enable RCAS</span>
-        <span class="track" aria-hidden="true"></span>
-      </button>
-      <div class="row">
-        <div>
-          <label>Sharpness stops</label>
-          <div class="meta">0.0 = max · 1.0 = soft</div>
-        </div>
-        <div class="atrium-stepper">
-          <button type="button" class="atrium-focusable" id="rcasDec" tabindex="0">−</button>
-          <span class="val atrium-num" id="rcasVal">0.20</span>
-          <button type="button" class="atrium-focusable" id="rcasInc" tabindex="0">+</button>
-        </div>
+        <section class="atrium-section">
+          <div class="atrium-section-title">Presets</div>
+          <div class="presets">
+            <button type="button" class="atrium-press" data-preset="sharp">Sharp</button>
+            <button type="button" class="atrium-press" data-preset="balanced">Balanced</button>
+            <button type="button" class="atrium-press" data-preset="soft">Soft</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="atrium-section" style="height:100%">
+          <div class="atrium-section-title">Pipeline</div>
+          <div class="atrium-card pipeline">
+            <div class="flow">
+              <div class="pipe-node">
+                <span class="k">Render</span>
+                <span class="v atrium-num" id="pipeRender">—</span>
+              </div>
+              <span class="pipe-arrow">→</span>
+              <div class="pipe-node">
+                <span class="k">Scaler</span>
+                <span class="v" id="pipeScaler">OFF</span>
+              </div>
+              <span class="pipe-arrow">→</span>
+              <div class="pipe-node">
+                <span class="k">Output</span>
+                <span class="v atrium-num" id="pipeOut">—</span>
+              </div>
+            </div>
+            <div class="pipe-node">
+              <span class="k">RCAS</span>
+              <span class="v atrium-num" id="pipeRcas">off</span>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -141,9 +232,16 @@
       sgsrUseEdgeDirection: true,
       rcasSharpnessStops: 0.2,
     };
+    let host = { width: null, height: null, hostWidth: null, hostHeight: null };
 
     function thrUnits() {
       return Math.round(state.sgsrEdgeThreshold * 2550) / 10;
+    }
+
+    function scalerLabel() {
+      if (state.mode === 'fsr1') return 'FSR 1.0';
+      if (state.mode === 'sgsr') return 'SGSR 1.0';
+      return 'OFF';
     }
 
     function render() {
@@ -161,15 +259,26 @@
       const rcas = document.getElementById('rcasOn');
       rcas.classList.toggle('is-on', !!state.sharpenRcas);
       rcas.setAttribute('aria-checked', state.sharpenRcas ? 'true' : 'false');
-      document.getElementById('rcasVal').textContent = Number(state.rcasSharpnessStops).toFixed(2);
-      if (window.AtriumFocus) {
-        const focused = document.querySelector('.atrium-focusable.is-focused');
-        if (focused && focused.closest('[hidden]')) {
-          window.AtriumFocus.ensureInitial();
-        } else if (state.mode === 'sgsr') {
-          window.AtriumFocus.ensureInitial();
-        }
-      }
+      const rcasStops = Number(state.rcasSharpnessStops);
+      document.getElementById('rcasVal').textContent = rcasStops.toFixed(2);
+      const rcasT = Math.max(0, Math.min(1, rcasStops));
+      document.getElementById('rcasFill').style.width = (rcasT * 100) + '%';
+      document.getElementById('rcasThumb').style.left = (rcasT * 100) + '%';
+      document.getElementById('rcasSlider').setAttribute(
+        'aria-valuenow',
+        String(Math.round(rcasT * 100))
+      );
+
+      const rw = host.width || '—';
+      const rh = host.height || '—';
+      const ow = host.hostWidth || rw;
+      const oh = host.hostHeight || rh;
+      document.getElementById('pipeRender').textContent = rw + '×' + rh;
+      document.getElementById('pipeScaler').textContent = scalerLabel();
+      document.getElementById('pipeOut').textContent = ow + '×' + oh;
+      document.getElementById('pipeRcas').textContent = state.sharpenRcas
+        ? Number(state.rcasSharpnessStops).toFixed(2)
+        : 'off';
     }
 
     function push(partial) {
@@ -188,12 +297,10 @@
       push({ sharpenRcas: !state.sharpenRcas });
     });
     document.getElementById('thrDec').addEventListener('click', () => {
-      const u = Math.max(0, thrUnits() - 1);
-      push({ sgsrEdgeThreshold: u / 255 });
+      push({ sgsrEdgeThreshold: Math.max(0, thrUnits() - 1) / 255 });
     });
     document.getElementById('thrInc').addEventListener('click', () => {
-      const u = Math.min(32, thrUnits() + 1);
-      push({ sgsrEdgeThreshold: u / 255 });
+      push({ sgsrEdgeThreshold: Math.min(32, thrUnits() + 1) / 255 });
     });
     document.getElementById('sharpDec').addEventListener('click', () => {
       push({ sgsrEdgeSharpness: Math.max(0.5, +(state.sgsrEdgeSharpness - 0.1).toFixed(2)) });
@@ -201,11 +308,81 @@
     document.getElementById('sharpInc').addEventListener('click', () => {
       push({ sgsrEdgeSharpness: Math.min(4, +(state.sgsrEdgeSharpness + 0.1).toFixed(2)) });
     });
+    const rcasSlider = document.getElementById('rcasSlider');
+    let rcasDragging = false;
+    function clampRcas(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return 0.2;
+      return Math.max(0, Math.min(1, Math.round(n * 100) / 100));
+    }
+    function rcasFromPointer(e) {
+      const rect = rcasSlider.getBoundingClientRect();
+      if (!(rect.width > 0)) return state.rcasSharpnessStops;
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      return clampRcas(x / rect.width);
+    }
+    function setRcas(v, persist) {
+      const next = clampRcas(v);
+      if (persist === false) {
+        state.rcasSharpnessStops = next;
+        render();
+        return;
+      }
+      push({ rcasSharpnessStops: next, sharpenRcas: true });
+    }
+    rcasSlider.addEventListener('mousedown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      rcasDragging = true;
+      setRcas(rcasFromPointer(e), false);
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!rcasDragging) return;
+      setRcas(rcasFromPointer(e), false);
+    });
+    window.addEventListener('mouseup', () => {
+      if (!rcasDragging) return;
+      rcasDragging = false;
+      push({ rcasSharpnessStops: state.rcasSharpnessStops, sharpenRcas: true });
+    });
+    window.addEventListener('mouseleave', () => {
+      if (!rcasDragging) return;
+      rcasDragging = false;
+      push({ rcasSharpnessStops: state.rcasSharpnessStops, sharpenRcas: true });
+    });
+    rcasSlider.addEventListener('keydown', (e) => {
+      const cur = Number(state.rcasSharpnessStops) || 0;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        setRcas(cur - 0.05);
+        e.preventDefault();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        setRcas(cur + 0.05);
+        e.preventDefault();
+      } else if (e.key === 'Home') {
+        setRcas(0);
+        e.preventDefault();
+      } else if (e.key === 'End') {
+        setRcas(1);
+        e.preventDefault();
+      }
+    });
     document.getElementById('rcasDec').addEventListener('click', () => {
-      push({ rcasSharpnessStops: Math.max(0, +(state.rcasSharpnessStops - 0.05).toFixed(2)) });
+      setRcas((Number(state.rcasSharpnessStops) || 0) - 0.05);
     });
     document.getElementById('rcasInc').addEventListener('click', () => {
-      push({ rcasSharpnessStops: Math.min(1, +(state.rcasSharpnessStops + 0.05).toFixed(2)) });
+      setRcas((Number(state.rcasSharpnessStops) || 0) + 0.05);
+    });
+    document.querySelectorAll('[data-preset]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const p = b.dataset.preset;
+        if (p === 'sharp') {
+          push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.05 });
+        } else if (p === 'soft') {
+          push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.45 });
+        } else {
+          push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.2 });
+        }
+      });
     });
 
     function onState(cfg) {
@@ -214,22 +391,35 @@
       render();
     }
 
-    function onAction(act) {
-      if (!window.AtriumFocus || !act) return false;
-      if (act.action === 'Nav' && act.dir) return window.AtriumFocus.move(act.dir);
-      if (act.action === 'Confirm') return window.AtriumFocus.confirm();
-      return false;
+    function onChrome(d) {
+      d = d || {};
+      if (d.status) {
+        host = {
+          width: d.status.width,
+          height: d.status.height,
+          hostWidth: d.status.hostWidth,
+          hostHeight: d.status.hostHeight,
+        };
+        render();
+      }
+      if (d.accent) document.body.setAttribute('data-accent', d.accent);
     }
 
     const wait = setInterval(() => {
       if (!window.AtriumPlugin) return;
       clearInterval(wait);
       window.AtriumPlugin.on('upscale-state', onState);
-      window.AtriumPlugin.on('action', onAction);
       window.AtriumPlugin.send('upscale-get', {});
     }, 80);
 
     window.addEventListener('plugin:scaling-sharpening:upscale-state', (e) => onState(e.detail));
+    window.addEventListener('atrium-shell-chrome', (e) => onChrome(e.detail));
+    const eventSource = window.lotus?.on
+      ? window.lotus
+      : window.lotus?.ipc?.on
+        ? window.lotus.ipc
+        : null;
+    if (eventSource) eventSource.on('atrium-shell-chrome', onChrome);
     render();
   </script>
 </body>

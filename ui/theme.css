@@ -1,14 +1,24 @@
-/* Atrium Botanical — shared design tokens + controller focus */
+/* Atrium Botanical — locked stage tokens (touch / pointer) */
 :root {
-  /* Overlay settings glass — opaque enough to read copy over the game. */
-  --atrium-bg: rgba(11, 15, 14, 0.82);
-  --atrium-bg-elevated: rgba(17, 24, 22, 0.88);
+  /* Panel surface — ~82% opaque near-black + blur (set on .atrium-stage). */
+  --atrium-bg: rgba(8, 10, 12, 0.82);
+  --atrium-bg-elevated: rgba(14, 18, 20, 0.90);
   --atrium-bg-card: rgba(255, 255, 255, 0.05);
-  --atrium-border: rgba(52, 211, 153, 0.22);
+  --atrium-bg-recess: rgba(0, 0, 0, 0.28);
+
+  /* Accent swaps per tab via --atrium-accent (shell sets data-accent). */
+  --atrium-accent: #2dd4bf;
+  --atrium-accent-soft: rgba(45, 212, 191, 0.16);
+  --atrium-accent-border: rgba(45, 212, 191, 0.35);
+  --atrium-accent-chat: #60a5fa;
+  --atrium-accent-scaling: #fbbf24;
+  --atrium-accent-perf: #2dd4bf;
+
+  --atrium-border: var(--atrium-accent-border);
   --atrium-border-subtle: rgba(255, 255, 255, 0.12);
-  --atrium-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --atrium-primary: #6ee7b7;
-  --atrium-primary-soft: rgba(110, 231, 183, 0.16);
+  --atrium-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --atrium-primary: var(--atrium-accent);
+  --atrium-primary-soft: var(--atrium-accent-soft);
   --atrium-warm: #fbbf24;
   --atrium-warm-soft: rgba(251, 191, 36, 0.16);
   --atrium-danger: #fb7185;
@@ -16,7 +26,7 @@
   --atrium-text: #f5fff9;
   --atrium-text-muted: #c5d4ce;
   --atrium-text-dim: #8fa39b;
-  /* Perf / telemetry hues — shared by HUD pill + diagnostics panel. */
+
   --atrium-stat-fps: #6ee7b7;
   --atrium-stat-frametime: #7dd3fc;
   --atrium-stat-lows: #fbbf24;
@@ -24,16 +34,52 @@
   --atrium-stat-ram: #2dd4bf;
   --atrium-stat-self: #e879f9;
   --atrium-stat-surf: #e2e8f0;
+
   --atrium-radius: 10px;
-  --atrium-radius-sm: 6px;
+  --atrium-radius-sm: 8px;
+  --atrium-radius-pill: 999px;
+
+  /* Type at 1080p reference; scale slightly down on shorter hosts via media. */
   --atrium-font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --atrium-font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --atrium-text-body: 18px;
+  --atrium-text-secondary: 15px;
+  --atrium-text-section: 13px;
+  --atrium-touch: 48px;
+
   --atrium-glass: var(--atrium-bg);
   --atrium-glass-border: 1px solid var(--atrium-border);
+  --atrium-blur: blur(14px);
+  --atrium-motion-content: 120ms ease;
+  --atrium-motion-accent: 200ms ease;
+}
+
+[data-accent="chat"] {
+  --atrium-accent: var(--atrium-accent-chat);
+  --atrium-accent-soft: rgba(96, 165, 250, 0.16);
+  --atrium-accent-border: rgba(96, 165, 250, 0.35);
+}
+[data-accent="scaling"] {
+  --atrium-accent: var(--atrium-accent-scaling);
+  --atrium-accent-soft: rgba(251, 191, 36, 0.16);
+  --atrium-accent-border: rgba(251, 191, 36, 0.35);
+}
+[data-accent="perf"] {
+  --atrium-accent: var(--atrium-accent-perf);
+  --atrium-accent-soft: rgba(45, 212, 191, 0.16);
+  --atrium-accent-border: rgba(45, 212, 191, 0.35);
+}
+
+@media (max-height: 800px) {
+  :root {
+    --atrium-text-body: 16px;
+    --atrium-text-secondary: 15px;
+  }
 }
 
 html, body {
   font-family: var(--atrium-font-sans);
+  font-size: var(--atrium-text-body);
   color: var(--atrium-text);
 }
 
@@ -45,11 +91,76 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+/* —— Stage panel (content fills the locked body) —— */
+.atrium-stage,
 .atrium-panel {
   background: var(--atrium-bg);
-  border: var(--atrium-glass-border);
+  border: 1px solid var(--atrium-accent-border);
   border-radius: var(--atrium-radius);
   box-shadow: var(--atrium-highlight-top);
+  backdrop-filter: var(--atrium-blur);
+  -webkit-backdrop-filter: var(--atrium-blur);
+  transition: border-color var(--atrium-motion-accent),
+    box-shadow var(--atrium-motion-accent);
+}
+
+.atrium-stage {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  /* Square bottom corners — hanging tab cluster / action socket attach here. */
+  border-radius: var(--atrium-radius) var(--atrium-radius) 0 0;
+}
+
+/* Corner ticks — 10px L brackets */
+.atrium-stage::before,
+.atrium-stage::after,
+.atrium-ticks::before,
+.atrium-ticks::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 2;
+  border-color: var(--atrium-accent);
+  transition: border-color var(--atrium-motion-accent);
+}
+.atrium-stage::before,
+.atrium-ticks::before {
+  top: 6px;
+  left: 6px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+.atrium-stage::after,
+.atrium-ticks::after {
+  top: 6px;
+  right: 6px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+.atrium-ticks-br,
+.atrium-ticks-bl {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 2;
+  border-color: var(--atrium-accent);
+  transition: border-color var(--atrium-motion-accent);
+}
+.atrium-ticks-bl {
+  bottom: 6px;
+  left: 6px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+.atrium-ticks-br {
+  bottom: 6px;
+  right: 6px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
 }
 
 .atrium-card {
@@ -59,38 +170,67 @@ html, body {
   box-shadow: var(--atrium-highlight-top);
 }
 
+/* Section header: small caps + hairline to edge */
+.atrium-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.atrium-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--atrium-text-section);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--atrium-text-muted);
+}
+.atrium-section-title::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--atrium-border-subtle);
+}
+
 .atrium-focusable {
   outline: none;
   border-radius: var(--atrium-radius-sm);
-  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  transition: background 0.12s ease, box-shadow 0.12s ease,
+    border-color 0.12s ease, transform 0.1s ease;
 }
-
-.atrium-focusable:focus-visible,
-.atrium-focusable.is-focused {
-  outline: 2px solid var(--atrium-warm);
-  outline-offset: 2px;
-  background: var(--atrium-warm-soft);
+.atrium-focusable:focus-visible {
+  outline: 2px solid var(--atrium-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px var(--atrium-accent-soft);
+}
+.atrium-press:active,
+.atrium-focusable:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 0 3px var(--atrium-accent-soft),
+    0 0 18px var(--atrium-accent-soft);
 }
 
 .atrium-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px;
   background: var(--atrium-bg-card);
   border: 1px solid var(--atrium-border-subtle);
   border-radius: var(--atrium-radius-sm);
   color: var(--atrium-text);
   cursor: pointer;
   font: inherit;
+  font-size: var(--atrium-text-secondary);
   text-align: left;
   width: 100%;
 }
-
 .atrium-toggle .track {
-  width: 34px;
-  height: 18px;
+  width: 42px;
+  height: 24px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--atrium-border-subtle);
@@ -98,57 +238,55 @@ html, body {
   flex-shrink: 0;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-
 .atrium-toggle .track::after {
   content: "";
   position: absolute;
-  top: 1px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
+  top: 2px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #cbd5e1;
   transition: transform 0.15s ease, background 0.15s ease;
 }
-
 .atrium-toggle[aria-checked="true"] .track,
 .atrium-toggle.is-on .track {
-  background: var(--atrium-primary-soft);
-  border-color: rgba(52, 211, 153, 0.45);
+  background: var(--atrium-accent-soft);
+  border-color: var(--atrium-accent-border);
 }
-
 .atrium-toggle[aria-checked="true"] .track::after,
 .atrium-toggle.is-on .track::after {
-  transform: translateX(14px);
-  background: var(--atrium-primary);
+  transform: translateX(16px);
+  background: var(--atrium-accent);
 }
 
 .atrium-seg {
   display: inline-flex;
   gap: 4px;
-  padding: 3px;
+  padding: 4px;
+  min-height: var(--atrium-touch);
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--atrium-border-subtle);
   border-radius: var(--atrium-radius-sm);
+  align-items: stretch;
 }
-
 .atrium-seg button {
   appearance: none;
   border: 0;
   background: transparent;
   color: var(--atrium-text-muted);
   font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 10px;
-  border-radius: 5px;
+  font-size: var(--atrium-text-secondary);
+  font-weight: 650;
+  padding: 0 14px;
+  min-height: calc(var(--atrium-touch) - 8px);
+  border-radius: 6px;
   cursor: pointer;
 }
-
 .atrium-seg button[aria-pressed="true"],
 .atrium-seg button.is-active {
-  background: var(--atrium-primary-soft);
-  color: var(--atrium-primary);
+  background: var(--atrium-accent-soft);
+  color: var(--atrium-accent);
   box-shadow: var(--atrium-highlight-top);
 }
 
@@ -156,9 +294,9 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--atrium-text-section);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -168,13 +306,12 @@ html, body {
   font-family: var(--atrium-font-mono);
   font-variant-numeric: tabular-nums;
 }
-
-.atrium-badge.jade {
-  color: var(--atrium-primary);
-  border-color: rgba(52, 211, 153, 0.35);
-  background: var(--atrium-primary-soft);
+.atrium-badge.jade,
+.atrium-badge.accent {
+  color: var(--atrium-accent);
+  border-color: var(--atrium-accent-border);
+  background: var(--atrium-accent-soft);
 }
-
 .atrium-badge.amber {
   color: var(--atrium-warm);
   border-color: rgba(245, 158, 11, 0.35);
@@ -186,10 +323,9 @@ html, body {
   align-items: center;
   gap: 8px;
 }
-
 .atrium-stepper button {
-  width: 28px;
-  height: 28px;
+  width: var(--atrium-touch);
+  height: var(--atrium-touch);
   border-radius: var(--atrium-radius-sm);
   border: 1px solid var(--atrium-border-subtle);
   background: var(--atrium-bg-card);
@@ -198,13 +334,12 @@ html, body {
   font-weight: 700;
   cursor: pointer;
 }
-
 .atrium-stepper .val {
-  min-width: 4.5ch;
+  min-width: 5ch;
   text-align: center;
   font-family: var(--atrium-font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: var(--atrium-text-secondary);
 }
 
 .atrium-slider-row {
@@ -212,33 +347,30 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 10px;
+  min-height: var(--atrium-touch);
+  padding: 10px 12px;
   background: var(--atrium-bg-card);
   border: 1px solid var(--atrium-border-subtle);
   border-radius: var(--atrium-radius-sm);
   box-shadow: var(--atrium-highlight-top);
 }
-
 .atrium-slider-row .copy {
   min-width: 0;
   flex: 1 1 auto;
 }
-
 .atrium-slider-row .copy strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--atrium-text-secondary);
   font-weight: 700;
   color: var(--atrium-text);
 }
-
 .atrium-slider-row .copy span {
   display: block;
   margin-top: 2px;
-  font-size: 10px;
+  font-size: var(--atrium-text-secondary);
   color: var(--atrium-text-dim);
   line-height: 1.35;
 }
-
 .atrium-slider-row .control {
   display: flex;
   align-items: center;
@@ -246,11 +378,10 @@ html, body {
   flex: 0 0 auto;
 }
 
-/* Custom track — Servo does not reliably drag native <input type="range">. */
 .atrium-slider {
   position: relative;
-  width: 120px;
-  height: 28px;
+  width: 140px;
+  height: var(--atrium-touch);
   padding: 0;
   border: 0;
   background: transparent;
@@ -259,7 +390,6 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
 }
-
 .atrium-slider .track {
   position: absolute;
   left: 0;
@@ -273,33 +403,58 @@ html, body {
   overflow: hidden;
   pointer-events: none;
 }
-
 .atrium-slider .fill {
   display: block;
   height: 100%;
   width: 42%;
-  background: var(--atrium-primary-soft);
-  border-right: 1px solid rgba(110, 231, 183, 0.45);
+  background: var(--atrium-accent-soft);
+  border-right: 1px solid var(--atrium-accent-border);
   pointer-events: none;
 }
-
 .atrium-slider .thumb {
   position: absolute;
   top: 50%;
   left: 42%;
-  width: 16px;
-  height: 16px;
-  margin: -8px 0 0 -8px;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
   border-radius: 50%;
-  background: var(--atrium-primary);
+  background: var(--atrium-accent);
   border: 2px solid rgba(11, 15, 14, 0.9);
-  box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.45);
+  box-shadow: 0 0 0 1px var(--atrium-accent-border);
   pointer-events: none;
 }
-
-.atrium-slider:focus-visible,
-.atrium-slider.is-focused {
-  outline: 2px solid var(--atrium-warm);
+.atrium-slider:focus-visible {
+  outline: 2px solid var(--atrium-accent);
   outline-offset: 3px;
   border-radius: 6px;
+}
+
+/* Chat recessed well */
+.atrium-well {
+  height: 100%;
+  padding: 10px;
+  background: var(--atrium-bg-recess);
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: var(--atrium-radius-sm);
+}
+
+.atrium-fade-in {
+  animation: atrium-fade-in var(--atrium-motion-content) ease;
+}
+@keyframes atrium-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Accent color swap — panels adopt tab accent without geometry change */
+[data-accent] .atrium-panel,
+[data-accent] .atrium-card,
+[data-accent] .atrium-seg,
+[data-accent] .atrium-toggle {
+  transition: border-color var(--atrium-motion-accent),
+    color var(--atrium-motion-accent),
+    background var(--atrium-motion-accent),
+    box-shadow var(--atrium-motion-accent);
 }

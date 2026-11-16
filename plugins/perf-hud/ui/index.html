@@ -12,64 +12,56 @@
     }
     .panel {
       height: 100%;
-      padding: 12px 14px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
       overflow: auto;
-    }
-    .hdr h1 {
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--atrium-text-muted);
-      font-weight: 700;
-    }
-    .hdr .hint {
-      font-size: 10px;
-      color: var(--atrium-text-dim);
-      margin-top: 4px;
-      line-height: 1.35;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
     }
     .summary {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      gap: 10px;
     }
     .summary-card {
-      padding: 10px 10px 8px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      min-height: 72px;
+      min-height: 88px;
     }
     .card-label {
-      font-size: 9px;
+      font-size: var(--atrium-text-section);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       font-weight: 700;
-      opacity: 0.8;
+      opacity: 0.85;
     }
     .card-hero {
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 800;
       line-height: 1;
     }
     .card-hero.waiting {
-      font-size: 14px;
+      font-size: var(--atrium-text-secondary);
       font-weight: 600;
       color: var(--atrium-text-muted) !important;
     }
     .card-sub {
-      font-size: 12px;
+      font-size: var(--atrium-text-body);
       font-weight: 700;
       line-height: 1.35;
     }
     .card-meta {
-      font-size: 10px;
+      font-size: var(--atrium-text-secondary);
       font-weight: 600;
       line-height: 1.4;
-      opacity: 0.88;
+      opacity: 0.9;
     }
     .card-fps .card-label,
     .card-fps .card-hero { color: var(--atrium-stat-fps); }
@@ -81,7 +73,7 @@
     .card-cpu .card-sub { color: var(--atrium-stat-cpu); }
     .card-cpu .card-meta { color: var(--atrium-stat-ram); }
     .graph {
-      height: 56px;
+      height: 96px;
       background: rgba(0, 0, 0, 0.22);
       border: 1px solid var(--atrium-border-subtle);
       border-radius: var(--atrium-radius-sm);
@@ -90,33 +82,21 @@
       flex-shrink: 0;
     }
     canvas { width: 100%; height: 100%; display: block; }
-    .config h2 {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--atrium-text);
-      letter-spacing: 0.03em;
-    }
     .config p {
-      font-size: 10px;
+      font-size: var(--atrium-text-secondary);
       color: var(--atrium-text-dim);
-      margin-top: 4px;
       line-height: 1.35;
     }
     .toggles {
       margin-top: 8px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 6px;
+      gap: 8px;
     }
   </style>
 </head>
-<body>
-  <div class="panel atrium-panel">
-    <header class="hdr">
-      <h1>PERF · DIAGNOSTICS</h1>
-      <p class="hint">Click or Tab to move · Enter to toggle</p>
-    </header>
-
+<body data-accent="perf">
+  <div class="panel atrium-panel atrium-fade-in">
     <div class="summary">
       <div class="atrium-card summary-card card-fps">
         <span class="card-label">Frame rate</span>
@@ -139,11 +119,22 @@
       </div>
     </div>
 
-    <div class="graph"><canvas id="ft-canvas"></canvas></div>
+    <section class="atrium-section">
+      <div class="atrium-section-title">Frametime</div>
+      <div class="graph"><canvas id="ft-canvas"></canvas></div>
+    </section>
 
-    <section class="config">
-      <h2>HUD pill fields</h2>
-      <p>Choose what the in-game overlay pill shows (always passthrough).</p>
+    <section class="config atrium-section">
+      <div class="atrium-section-title">In-game HUD</div>
+      <p>Show or hide the pill while playing.</p>
+      <div class="toggles" style="margin-bottom: 14px;">
+        <button type="button" class="atrium-toggle atrium-focusable" id="showPill" role="switch" tabindex="0" style="grid-column: 1 / -1;">
+          <span>Show HUD pill</span>
+          <span class="track" aria-hidden="true"></span>
+        </button>
+      </div>
+      <div class="atrium-section-title">HUD pill fields</div>
+      <p>Choose what the pill shows (always passthrough).</p>
       <div class="toggles" id="toggles"></div>
       <div class="atrium-slider-row" style="margin-top: 10px;">
         <div class="copy">
@@ -184,6 +175,7 @@
       graph: false,
       hint: true,
       opacity: 0.42,
+      showPill: true,
     };
     const TOGGLE_KEYS = ['fps', 'frametime', 'lows', 'cpu', 'ram', 'self', 'pool', 'surf', 'graph'];
     const LABELS = {
@@ -356,9 +348,7 @@
     let rafPending = false;
     function renderGraph() {
       rafPending = false;
-      // Idle rAF while graph is off forced Servo paints every frame (anon climb
-      // with another always-on HUD like static-crosshair). Only loop when needed.
-      if (!fields.graph) return;
+      // Always-on frametime graph in the Perf tab (independent of HUD mini-graph).
       const w = canvas.width;
       const h = canvas.height;
       g.clearRect(0, 0, w, h);
@@ -382,7 +372,7 @@
       scheduleGraph();
     }
     function scheduleGraph() {
-      if (!fields.graph || rafPending) return;
+      if (rafPending) return;
       rafPending = true;
       requestAnimationFrame(renderGraph);
     }
@@ -425,9 +415,21 @@
       }
     }
 
+    const showPillBtn = document.getElementById('showPill');
+    function syncShowPill() {
+      syncToggle(showPillBtn, fields.showPill !== false);
+    }
+    showPillBtn.addEventListener('click', () => {
+      fields.showPill = fields.showPill === false;
+      syncShowPill();
+      pushConfig();
+    });
+
     function onConfig(cfg) {
       if (!cfg || typeof cfg !== 'object') return;
       fields = Object.assign({}, DEFAULT_FIELDS, cfg);
+      fields.showPill = fields.showPill !== false;
+      syncShowPill();
       syncOpacityUi(fields.opacity);
       renderToggles();
       scheduleGraph();
@@ -477,13 +479,6 @@
       setOpacityFromPct(Math.round(fields.opacity * 100) + 5);
     });
 
-    function onAction(act) {
-      if (!window.AtriumFocus || !act) return false;
-      if (act.action === 'Nav' && act.dir) return window.AtriumFocus.move(act.dir);
-      if (act.action === 'Confirm') return window.AtriumFocus.confirm();
-      return false;
-    }
-
     window.addEventListener('plugin:perf-hud:stats', (e) => updateLiveStats(e.detail));
     window.addEventListener('plugin:perf-hud:hud-config', (e) => onConfig(e.detail));
     window.addEventListener('atrium-pane-shown', () => {
@@ -496,12 +491,12 @@
         clearInterval(waitPlugin);
         window.AtriumPlugin.on('stats', updateLiveStats);
         window.AtriumPlugin.on('hud-config', onConfig);
-        window.AtriumPlugin.on('action', onAction);
         window.AtriumPlugin.send('hud-config-request', {});
       }
     }, 100);
 
     syncOpacityUi(fields.opacity);
+    syncShowPill();
     renderToggles();
   </script>
 </body>

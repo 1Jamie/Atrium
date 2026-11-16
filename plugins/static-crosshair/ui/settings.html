@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+    }
+    .panel {
+      height: 100%;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow: auto;
+      background: transparent !important;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: 560px;
+    }
+    .colors { display: flex; gap: 8px; flex-wrap: wrap; }
+    .swatch {
+      width: 36px; height: 36px;
+      border-radius: 999px;
+      border: 2px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      padding: 0;
+    }
+    .swatch.on { border-color: var(--atrium-text); }
+    .preview-wrap {
+      width: 96px; height: 96px;
+      border-radius: var(--atrium-radius-sm);
+      border: 1px solid var(--atrium-border-subtle);
+      background:
+        linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+        #111;
+      background-size: 16px 16px;
+      position: relative;
+    }
+    p { color: var(--atrium-text-dim); font-size: var(--atrium-text-secondary); max-width: 560px; }
+  </style>
+</head>
+<body data-accent="perf">
+  <div class="panel atrium-panel atrium-fade-in">
+    <section class="atrium-section">
+      <div class="atrium-section-title">Crosshair</div>
+      <p>Shown in the center of the game. Hidden while the overlay is open.</p>
+      <div class="row" style="margin-top: 12px;">
+        <button type="button" class="atrium-toggle atrium-focusable" id="enabled" role="switch" tabindex="0">
+          <span>Show crosshair</span>
+          <span class="track" aria-hidden="true"></span>
+        </button>
+        <div class="preview-wrap" id="preview" aria-hidden="true"></div>
+      </div>
+    </section>
+    <section class="atrium-section">
+      <div class="atrium-section-title">Color</div>
+      <div class="colors" id="colors"></div>
+    </section>
+    <section class="atrium-section">
+      <div class="atrium-section-title">Shape</div>
+      <div class="atrium-slider-row">
+        <div class="copy"><strong>Length</strong><span>Arm length in pixels</span></div>
+        <div class="control atrium-stepper">
+          <button type="button" id="lenDec" class="atrium-focusable" aria-label="Shorter">−</button>
+          <span class="val atrium-num" id="lenVal">8</span>
+          <button type="button" id="lenInc" class="atrium-focusable" aria-label="Longer">+</button>
+        </div>
+      </div>
+      <div class="atrium-slider-row">
+        <div class="copy"><strong>Thickness</strong><span>Arm width</span></div>
+        <div class="control atrium-stepper">
+          <button type="button" id="thDec" class="atrium-focusable" aria-label="Thinner">−</button>
+          <span class="val atrium-num" id="thVal">2</span>
+          <button type="button" id="thInc" class="atrium-focusable" aria-label="Thicker">+</button>
+        </div>
+      </div>
+      <div class="atrium-slider-row">
+        <div class="copy"><strong>Gap</strong><span>Space in the center</span></div>
+        <div class="control atrium-stepper">
+          <button type="button" id="gapDec" class="atrium-focusable" aria-label="Smaller gap">−</button>
+          <span class="val atrium-num" id="gapVal">0</span>
+          <button type="button" id="gapInc" class="atrium-focusable" aria-label="Larger gap">+</button>
+        </div>
+      </div>
+      <button type="button" class="atrium-toggle atrium-focusable" id="outline" role="switch" tabindex="0" style="margin-top: 8px;">
+        <span>Outline</span>
+        <span class="track" aria-hidden="true"></span>
+      </button>
+    </section>
+  </div>
+  <script>
+    const COLORS = ['#ffffff', '#39ff14', '#ff3355', '#7dd3fc', '#fbbf24', '#111111'];
+    let cfg = {
+      enabled: true,
+      color: '#ffffff',
+      thickness: 2,
+      length: 8,
+      gap: 0,
+      outline: true,
+    };
+
+    function send(partial) {
+      cfg = Object.assign({}, cfg, partial);
+      render();
+      if (window.AtriumPlugin) window.AtriumPlugin.send('set', cfg);
+    }
+
+    function syncToggle(btn, on) {
+      btn.classList.toggle('is-on', !!on);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    function drawPreview() {
+      const box = document.getElementById('preview');
+      box.innerHTML = '';
+      const xh = document.createElement('div');
+      xh.style.cssText = 'position:absolute;left:50%;top:50%;width:0;height:0;';
+      if (!cfg.enabled) {
+        box.appendChild(xh);
+        return;
+      }
+      const outline = cfg.outline ? '0 0 2px rgba(0,0,0,0.85)' : 'none';
+      const arms = [
+        ['n', 'width:' + cfg.thickness + 'px;height:' + cfg.length + 'px;left:' + (-cfg.thickness / 2) + 'px;bottom:' + cfg.gap + 'px;'],
+        ['s', 'width:' + cfg.thickness + 'px;height:' + cfg.length + 'px;left:' + (-cfg.thickness / 2) + 'px;top:' + cfg.gap + 'px;'],
+        ['w', 'height:' + cfg.thickness + 'px;width:' + cfg.length + 'px;top:' + (-cfg.thickness / 2) + 'px;right:' + cfg.gap + 'px;'],
+        ['e', 'height:' + cfg.thickness + 'px;width:' + cfg.length + 'px;top:' + (-cfg.thickness / 2) + 'px;left:' + cfg.gap + 'px;'],
+      ];
+      for (const spec of arms) {
+        const arm = document.createElement('span');
+        arm.style.cssText = 'position:absolute;background:' + cfg.color + ';box-shadow:' + outline + ';' + spec[1];
+        xh.appendChild(arm);
+      }
+      box.appendChild(xh);
+    }
+
+    function render() {
+      syncToggle(document.getElementById('enabled'), cfg.enabled);
+      syncToggle(document.getElementById('outline'), cfg.outline);
+      document.getElementById('lenVal').textContent = String(cfg.length);
+      document.getElementById('thVal').textContent = String(cfg.thickness);
+      document.getElementById('gapVal').textContent = String(cfg.gap);
+      for (const btn of document.querySelectorAll('.swatch')) {
+        btn.classList.toggle('on', btn.dataset.color === cfg.color);
+      }
+      drawPreview();
+    }
+
+    const colors = document.getElementById('colors');
+    for (const color of COLORS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'swatch atrium-focusable';
+      btn.dataset.color = color;
+      btn.style.background = color;
+      btn.setAttribute('aria-label', color);
+      btn.addEventListener('click', () => send({ color }));
+      colors.appendChild(btn);
+    }
+
+    document.getElementById('enabled').addEventListener('click', () => send({ enabled: !cfg.enabled }));
+    document.getElementById('outline').addEventListener('click', () => send({ outline: !cfg.outline }));
+    document.getElementById('lenDec').addEventListener('click', () => send({ length: cfg.length - 1 }));
+    document.getElementById('lenInc').addEventListener('click', () => send({ length: cfg.length + 1 }));
+    document.getElementById('thDec').addEventListener('click', () => send({ thickness: cfg.thickness - 1 }));
+    document.getElementById('thInc').addEventListener('click', () => send({ thickness: cfg.thickness + 1 }));
+    document.getElementById('gapDec').addEventListener('click', () => send({ gap: cfg.gap - 1 }));
+    document.getElementById('gapInc').addEventListener('click', () => send({ gap: cfg.gap + 1 }));
+
+    function onConfig(next) {
+      if (!next || typeof next !== 'object') return;
+      cfg = Object.assign({}, cfg, next);
+      render();
+    }
+
+    window.addEventListener('plugin:static-crosshair:config', (e) => onConfig(e.detail));
+    const wait = setInterval(() => {
+      if (!window.AtriumPlugin) return;
+      clearInterval(wait);
+      window.AtriumPlugin.on('config', onConfig);
+      window.AtriumPlugin.send('get', {});
+    }, 100);
+    render();
+  </script>
+</body>
+</html>

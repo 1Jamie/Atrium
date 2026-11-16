@@ -21,28 +21,62 @@ done
 ATRIUM_ROOT="$(cd "$(dirname "$_atrium_src")/.." && pwd)"
 ATRIUM_MAIN="${ATRIUM_ROOT}/main.js"
 
-if [[ ! -f "$ATRIUM_MAIN" ]]; then
-  echo "atrium: missing launcher at $ATRIUM_MAIN" >&2
-  exit 1
+export ATRIUM_ROOT
+
+if [[ "${1:-}" == "--install-plugin" ]]; then
+  shift
+  exec node "${ATRIUM_ROOT}/scripts/install-plugin.js" "$@"
+fi
+if [[ "${1:-}" == "--remove-plugin" ]]; then
+  shift
+  id="${1:-}"
+  if [[ ! "$id" =~ ^[a-z0-9-]+$ ]]; then
+    echo "atrium: plugin id must match [a-z0-9-]+" >&2
+    exit 1
+  fi
+  cfg="${XDG_CONFIG_HOME:-$HOME/.config}/lotus-atrium/plugins/$id"
+  rm -rf "$cfg"
+  echo "atrium: removed $cfg"
+  exit 0
+fi
+
+if [[ -x "${ATRIUM_ROOT}/atrium-host" ]]; then
+  ATRIUM_HOST_BIN="${ATRIUM_ROOT}/atrium-host"
+  ATRIUM_USE_NODE=0
+else
+  if [[ ! -f "$ATRIUM_MAIN" ]]; then
+    echo "atrium: missing launcher at $ATRIUM_MAIN" >&2
+    exit 1
+  fi
+  ATRIUM_USE_NODE=1
 fi
 
 _atrium_path_prefix="${HOME}/.local/bin:/home/linuxbrew/.linuxbrew/bin:${HOME}/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
 export PATH="${_atrium_path_prefix}${PATH:+:$PATH}"
 
-NODE_BIN="$(command -v node || true)"
-if [[ -z "$NODE_BIN" ]]; then
-  echo "atrium: node not found (need node on the host for Steam launch)" >&2
-  exit 1
+if [[ "$ATRIUM_USE_NODE" == 1 ]]; then
+  NODE_BIN="$(command -v node || true)"
+  if [[ -z "$NODE_BIN" ]]; then
+    echo "atrium: node not found (need node on the host for Steam launch)" >&2
+    exit 1
+  fi
+  ATRIUM_HOST_BIN="$NODE_BIN"
+  export NODE_PATH="${ATRIUM_ROOT}/node_modules${NODE_PATH:+:$NODE_PATH}"
 fi
-
-# Resolve @lotus-gui/core from this package's node_modules.
-export NODE_PATH="${ATRIUM_ROOT}/node_modules${NODE_PATH:+:$NODE_PATH}"
 
 ATRIUM_HOST_LOG="${ATRIUM_HOST_LOG:-/tmp/atrium-host.log}"
 
 # --- helpers (bash is top-to-bottom; declare before use) -----------------------
 atrium_log() {
   printf '[atrium] %s\n' "$*" | tee -a "$ATRIUM_HOST_LOG" >&2
+}
+
+atrium_launch_host() {
+  if [[ "$ATRIUM_USE_NODE" == 1 ]]; then
+    "$ATRIUM_HOST_BIN" "$ATRIUM_MAIN" "$@"
+  else
+    "$ATRIUM_HOST_BIN" "$@"
+  fi
 }
 
 atrium_detect_gamemode() {
@@ -212,7 +246,7 @@ if atrium_detect_gamemode; then
 
   # Run node in background so we can gamescope-fg-tag its X11 window.
   set +e
-  "$NODE_BIN" "$ATRIUM_MAIN" "$@" >>"$ATRIUM_HOST_LOG" 2>&1 &
+  atrium_launch_host "$@" >>"$ATRIUM_HOST_LOG" 2>&1 &
   ATRIUM_PID=$!
   atrium_gamescope_fg_watch "$APP_ID" "$ATRIUM_PID" &
   WATCH_PID=$!
@@ -226,4 +260,4 @@ fi
 
 # Desktop path — still strip overlay from host if Steam injected it.
 atrium_strip_host_overlay_preload
-exec "$NODE_BIN" "$ATRIUM_MAIN" "$@"
+exec atrium_launch_host "$@"

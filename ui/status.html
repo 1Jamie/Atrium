@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Atrium Status</title>
+  <title>Atrium Header</title>
   <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     html, body {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       background: transparent !important;
       overflow: hidden;
       font-family: var(--atrium-font-sans);
@@ -18,132 +17,311 @@
     body.game-mode .chrome { display: none !important; }
     .chrome {
       position: absolute;
-      top: 0;
-      right: 0;
-      width: max-content;
-      max-width: 100%;
-      height: auto;
+      inset: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: 16px;
+      padding: 0 12px 0 16px;
+      background: var(--atrium-bg);
+      border: 1px solid var(--atrium-accent-border);
+      border-bottom: none;
+      border-radius: var(--atrium-radius) var(--atrium-radius) 0 0;
+      box-shadow: var(--atrium-highlight-top);
+      backdrop-filter: var(--atrium-blur);
+      -webkit-backdrop-filter: var(--atrium-blur);
+      pointer-events: auto;
+      transition: border-color var(--atrium-motion-accent);
+      animation: atrium-rise 180ms ease;
+    }
+    .chrome::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 0;
+      height: 2px;
+      background: var(--atrium-accent);
+      border-radius: 2px 2px 0 0;
+      transition: background var(--atrium-motion-accent);
+    }
+    @keyframes atrium-rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .left, .right {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      padding: 6px 10px;
-      background: var(--atrium-bg);
-      border: 1px solid var(--atrium-border);
-      border-radius: var(--atrium-radius);
-      box-shadow: var(--atrium-highlight-top);
-      pointer-events: none;
+      min-width: 0;
+      height: 100%;
     }
-    .status-row {
+    .left { overflow: hidden; }
+    .right {
+      justify-content: flex-end;
+      gap: 8px;
+      flex: none;
+    }
+    .title {
+      font-size: var(--atrium-text-body);
+      font-weight: 750;
+      color: var(--atrium-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      width: 100%;
+    }
+
+    .cluster {
       display: flex;
       align-items: center;
       gap: 6px;
-      flex-wrap: nowrap;
-      min-height: 22px;
-      width: max-content;
+      flex: 0 0 auto;
+      max-width: min(58vw, 720px);
+      min-width: 0;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--atrium-border-subtle);
+      background: rgba(0, 0, 0, 0.28);
+      font-family: var(--atrium-font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--atrium-text-secondary);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       max-width: 100%;
     }
+    .chip-tab {
+      color: var(--atrium-accent);
+      border-color: var(--atrium-accent-border);
+      background: var(--atrium-accent-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: var(--atrium-text-section);
+      flex: 0 0 auto;
+    }
+    .chip-tab .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--atrium-text-dim);
+      flex: 0 0 auto;
+      display: none;
+    }
+    body[data-accent="chat"] .chip-tab .dot { display: block; }
+    .chip-tab .dot.on {
+      background: #4ade80;
+      box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
+    }
+    .chip-scale {
+      color: var(--atrium-accent);
+      border-color: var(--atrium-accent-border);
+      background: var(--atrium-accent-soft);
+      flex: 0 0 auto;
+    }
+    .chip-res {
+      color: var(--atrium-text-muted);
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .chip-res .from { color: var(--atrium-text-dim); }
+    .chip-res .arrow { color: var(--atrium-text-dim); margin: 0 2px; }
+    .chip-res .to { color: var(--atrium-text); }
+    .chip-pace {
+      color: var(--atrium-accent);
+      border-color: var(--atrium-accent-border);
+      background: var(--atrium-accent-soft);
+      flex: 0 0 auto;
+    }
+
+    .icon-btn {
+      appearance: none;
+      border: 1px solid var(--atrium-border-subtle);
+      background: rgba(0,0,0,0.35);
+      color: var(--atrium-text-muted);
+      width: 48px;
+      height: 40px;
+      padding: 0;
+      border-radius: var(--atrium-radius-sm);
+      font-size: var(--atrium-text-secondary);
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      visibility: hidden;
+      pointer-events: none;
+      flex: 0 0 48px;
+    }
+    body[data-accent="chat"] .icon-btn.osk {
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .icon-btn.on {
+      color: var(--atrium-accent);
+      border-color: var(--atrium-accent-border);
+      background: var(--atrium-accent-soft);
+    }
+    .icon-btn.plugins {
+      visibility: visible;
+      pointer-events: auto;
+      width: auto;
+      min-width: 48px;
+      padding: 0 12px;
+      flex: 0 0 auto;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: var(--atrium-text-section);
+    }
+    .icon-btn:hover { color: var(--atrium-text); background: rgba(255,255,255,0.06); }
+    .icon-btn:active { transform: scale(0.97); }
+    .dismiss {
+      appearance: none;
+      border: 1px solid var(--atrium-border-subtle);
+      background: rgba(0,0,0,0.35);
+      color: var(--atrium-text-muted);
+      width: 48px;
+      height: 40px;
+      border-radius: var(--atrium-radius-sm);
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 48px;
+    }
+    .dismiss:hover { color: var(--atrium-text); background: rgba(255,255,255,0.06); }
+    .dismiss:active { transform: scale(0.97); }
   </style>
 </head>
-<body class="game-mode">
+<body class="game-mode" data-accent="perf">
   <div class="chrome" id="chrome">
-    <div class="status-row" id="statusRow"></div>
+    <div class="left">
+      <div class="title" id="title">Atrium</div>
+    </div>
+    <div class="right">
+      <div class="cluster" id="cluster" aria-label="Session details">
+        <span class="chip chip-tab" id="tabChip">
+          <span class="dot" id="chatDot" aria-hidden="true"></span>
+          <span id="tabLabel">—</span>
+        </span>
+        <span class="chip chip-scale" id="scaleChip">OFF</span>
+        <span class="chip chip-res" id="resChip">
+          <span class="from" id="resFrom">—</span>
+          <span class="arrow">→</span>
+          <span class="to" id="resTo">—</span>
+        </span>
+        <span class="chip chip-pace" id="paceChip">—</span>
+      </div>
+      <button type="button" class="icon-btn plugins atrium-press" id="plugins" title="Plugins">Plugins</button>
+      <button type="button" class="icon-btn osk atrium-press" id="osk" title="On-screen keyboard">⌨</button>
+      <button type="button" class="dismiss atrium-press" id="dismiss" title="Resume game">✕</button>
+    </div>
   </div>
   <script>
-    const statusRowEl = document.getElementById('statusRow');
+    const titleEl = document.getElementById('title');
+    const tabLabelEl = document.getElementById('tabLabel');
+    const scaleChip = document.getElementById('scaleChip');
+    const resFrom = document.getElementById('resFrom');
+    const resTo = document.getElementById('resTo');
+    const paceChip = document.getElementById('paceChip');
+    const dismissEl = document.getElementById('dismiss');
+    const oskEl = document.getElementById('osk');
+    const pluginsEl = document.getElementById('plugins');
+    const chatDot = document.getElementById('chatDot');
     let mode = 'game';
     let status = {};
+    let game = 'game';
+    let accent = 'perf';
 
     function lotusIpc() {
       return window.lotus?.ipc || window.lotus || null;
     }
 
     function pacingLabel(policy, hz) {
-      if (!policy) return hz ? Math.round(hz) + 'Hz' : '—';
-      const p = String(policy);
-      const hzBit = hz && Number(hz) > 0 ? Math.round(Number(hz)) + 'Hz ' : '';
-      if (p === 'FixedVsyncLocked') return hzBit + 'FIXED';
-      if (p === 'VrrPassthrough') return 'VRR';
-      return hzBit + p;
+      if (!policy && !(hz && Number(hz) > 0)) return '—';
+      const p = String(policy || '');
+      const hzBit = hz && Number(hz) > 0 ? Math.round(Number(hz)) + 'Hz' : '';
+      if (p === 'FixedVsyncLocked') return hzBit ? hzBit + ' FIXED' : 'FIXED';
+      if (p === 'VrrPassthrough') return hzBit ? hzBit + ' VRR' : 'VRR';
+      if (!p) return hzBit || '—';
+      return hzBit ? hzBit + ' ' + p : p;
     }
 
-    function badge(text, tone) {
-      const el = document.createElement('span');
-      el.className = 'atrium-badge' + (tone ? ' ' + tone : '');
-      el.textContent = text;
-      return el;
+    function dimLabel(w, h) {
+      if (!(w && h)) return '—';
+      return w + '×' + h;
     }
 
     function renderStatus() {
-      statusRowEl.innerHTML = '';
-      const w = status.width, h = status.height;
-      if (w && h) statusRowEl.appendChild(badge(w + '×' + h));
-      const hw = status.hostWidth, hh = status.hostHeight;
-      if (hw && hh && (hw !== w || hh !== h)) {
-        statusRowEl.appendChild(badge(hw + '×' + hh, 'jade'));
-      }
-      const pace = pacingLabel(status.pacing, status.refreshHz);
-      if (pace && pace !== '—') {
-        statusRowEl.appendChild(badge(pace, 'jade'));
-      }
-      const up = status.upscale || 'OFF';
-      statusRowEl.appendChild(badge(up, up === 'OFF' ? '' : 'amber'));
-      const clock = status.clock || '';
-      if (clock) statusRowEl.appendChild(badge(clock));
-      statusRowEl.appendChild(badge('Game · F12', 'jade'));
-    }
-
-    function reportShellMetrics() {
-      const chrome = document.getElementById('chrome');
-      const ipc = lotusIpc();
-      if (!chrome || !ipc?.send || mode === 'game') return;
-      const r = chrome.getBoundingClientRect();
-      const width = Math.ceil(r.width);
-      const height = Math.ceil(r.height);
-      if (width < 80 || height < 16) return;
-      ipc.send('atrium-shell-metrics', { kind: 'status', width, height });
-    }
-
-    function render() {
       document.body.classList.toggle('game-mode', mode === 'game');
-      renderStatus();
-      requestAnimationFrame(() => requestAnimationFrame(reportShellMetrics));
+      document.body.setAttribute('data-accent', accent || 'perf');
+      titleEl.textContent = game || 'Atrium';
+      tabLabelEl.textContent = status.tabLabel || '—';
+
+      scaleChip.textContent = status.upscale || 'OFF';
+      const from = dimLabel(status.width, status.height);
+      const to = dimLabel(status.hostWidth, status.hostHeight);
+      resFrom.textContent = from;
+      if (from !== '—' && to !== '—' && from !== to) {
+        resTo.textContent = to;
+        resTo.previousElementSibling.style.display = '';
+        resTo.style.display = '';
+      } else {
+        resTo.textContent = '';
+        resTo.previousElementSibling.style.display = 'none';
+        resTo.style.display = 'none';
+      }
+      paceChip.textContent = pacingLabel(status.pacing, status.refreshHz);
+
+      chatDot.classList.toggle('on', !!status.chatConnected);
+      pluginsEl.classList.toggle('on', !!status.pluginsOpen);
+      pluginsEl.setAttribute('aria-pressed', status.pluginsOpen ? 'true' : 'false');
+      oskEl.classList.toggle('on', !!status.oskActive);
+      oskEl.setAttribute('aria-pressed', status.oskActive ? 'true' : 'false');
     }
 
     function onShellChrome(d) {
       d = d || {};
       if (d.mode) mode = d.mode;
-      if (d.status && typeof d.status === 'object') status = d.status;
-      render();
-    }
-    window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
-
-    const eventSource = window.lotus?.on ? window.lotus
-      : (window.lotus?.ipc?.on ? window.lotus.ipc : null);
-    if (eventSource) {
-      eventSource.on('atrium-shell-chrome', onShellChrome);
-      eventSource.on('nest:host-upscale', (data) => {
-        if (data && data.mode) {
-          status.upscaleMode = data.mode;
-          status.upscale =
-            data.mode === 'sgsr' ? 'SGSR 1.0' : data.mode === 'fsr1' ? 'FSR 1.0' : 'OFF';
-          if (data.sharpenRcas) status.upscale += '+CAS';
-          renderStatus();
-          requestAnimationFrame(() => requestAnimationFrame(reportShellMetrics));
-        }
-      });
-      eventSource.on('nest:game-mode', (data) => {
-        if (data && data.game_mode !== undefined) {
-          mode = data.game_mode ? 'game' : 'overlay';
-          render();
-        }
-      });
+      if (d.status) status = d.status;
+      if (d.game) game = d.game;
+      if (d.accent) accent = d.accent;
+      renderStatus();
     }
 
-    try {
+    dismissEl.addEventListener('click', (ev) => {
+      ev.preventDefault();
       const ipc = lotusIpc();
-      if (ipc && typeof ipc._connectWs === 'function') ipc._connectWs();
-    } catch (e) {}
-    render();
+      if (ipc?.send) ipc.send('atrium-shell-button', 'dismiss');
+    });
+    pluginsEl.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const ipc = lotusIpc();
+      if (ipc?.send) ipc.send('atrium-shell-button', 'plugins');
+    });
+    oskEl.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const ipc = lotusIpc();
+      if (ipc?.send) ipc.send('atrium-shell-button', 'osk');
+    });
+
+    window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
+    const eventSource = window.lotus?.on
+      ? window.lotus
+      : window.lotus?.ipc?.on
+        ? window.lotus.ipc
+        : null;
+    if (eventSource) eventSource.on('atrium-shell-chrome', onShellChrome);
+    renderStatus();
   </script>
 </body>
 </html>

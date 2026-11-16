@@ -143,7 +143,8 @@
       timers.set(String(n.id), setTimeout(() => dismiss(n.id, el), ms));
     }
 
-    window.addEventListener('plugin:notifications:toast', (e) => pushToast(e.detail));
+    // Bind once via AtriumPlugin.on — emitHost also fires CustomEvent, so
+    // listening to both double-pushes every toast.
     const waitPlugin = setInterval(() => {
       if (window.AtriumPlugin) {
         clearInterval(waitPlugin);

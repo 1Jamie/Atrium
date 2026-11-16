@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atrium Stage</title>
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    body.game-mode .stage { display: none !important; }
+    .stage {
+      position: absolute;
+      inset: 0;
+      background: var(--atrium-bg);
+      border: 1px solid var(--atrium-accent-border);
+      /* Top only — bottom L/R stay square so the hanging docks attach flush. */
+      border-radius: var(--atrium-radius) var(--atrium-radius) 0 0;
+      box-shadow: var(--atrium-highlight-top);
+      backdrop-filter: var(--atrium-blur);
+      -webkit-backdrop-filter: var(--atrium-blur);
+      transition: border-color var(--atrium-motion-accent);
+      animation: atrium-rise 180ms ease;
+    }
+    @keyframes atrium-rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Accent segment on stage bottom border, flush above the tab cluster */
+    .stage::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 176px;
+      max-width: 40%;
+      height: 2px;
+      background: var(--atrium-accent);
+      border-radius: 0 2px 0 0;
+      z-index: 3;
+      transition: background var(--atrium-motion-accent);
+    }
+    .tick {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-color: var(--atrium-accent);
+      transition: border-color var(--atrium-motion-accent);
+    }
+    .tl { top: 6px; left: 6px; border-top: 2px solid; border-left: 2px solid; }
+    .tr { top: 6px; right: 6px; border-top: 2px solid; border-right: 2px solid; }
+    .bl { bottom: 6px; left: 6px; border-bottom: 2px solid; border-left: 2px solid; }
+    .br { bottom: 6px; right: 6px; border-bottom: 2px solid; border-right: 2px solid; }
+  </style>
+</head>
+<body class="game-mode" data-accent="perf">
+  <div class="stage" id="stage">
+    <i class="tick tl"></i>
+    <i class="tick tr"></i>
+    <i class="tick bl"></i>
+    <i class="tick br"></i>
+  </div>
+  <script>
+    let mode = 'game';
+    let accent = 'perf';
+    function render() {
+      document.body.classList.toggle('game-mode', mode === 'game');
+      document.body.setAttribute('data-accent', accent || 'perf');
+    }
+    function onShellChrome(d) {
+      d = d || {};
+      if (d.mode) mode = d.mode;
+      if (d.accent) accent = d.accent;
+      render();
+    }
+    window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
+    const eventSource = window.lotus?.on
+      ? window.lotus
+      : window.lotus?.ipc?.on
+        ? window.lotus.ipc
+        : null;
+    if (eventSource) eventSource.on('atrium-shell-chrome', onShellChrome);
+    render();
+  </script>
+</body>
+</html>

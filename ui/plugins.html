@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Plugins</title>
+  <link rel="stylesheet" href="lotus-resource://localhost/ui/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--atrium-bg);
+      color: var(--atrium-text);
+      font-family: var(--atrium-font-sans);
+      overflow: hidden;
+    }
+    .panel {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 24px 16px;
+      backdrop-filter: var(--atrium-blur);
+      -webkit-backdrop-filter: var(--atrium-blur);
+    }
+    h1 {
+      font-size: var(--atrium-text-body);
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .note {
+      margin-top: 6px;
+      color: var(--atrium-text-dim);
+      font-size: var(--atrium-text-secondary);
+    }
+    ul {
+      list-style: none;
+      margin-top: 16px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 56px;
+      padding: 10px 14px;
+      border-radius: var(--atrium-radius-sm);
+      border: 1px solid var(--atrium-border-subtle);
+      background: var(--atrium-bg-card);
+    }
+    .name { font-weight: 700; }
+    .meta { color: var(--atrium-text-dim); font-family: var(--atrium-font-mono); font-size: var(--atrium-text-secondary); }
+    button {
+      appearance: none;
+      height: 36px;
+      min-width: 96px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid var(--atrium-border-subtle);
+      background: rgba(0,0,0,0.35);
+      color: var(--atrium-text-muted);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.on {
+      color: var(--atrium-accent);
+      border-color: var(--atrium-accent-border);
+      background: var(--atrium-accent-soft);
+    }
+    .empty { margin-top: 24px; color: var(--atrium-text-muted); }
+  </style>
+</head>
+<body data-accent="perf">
+  <div class="panel">
+    <h1>Plugins</h1>
+    <p class="note">On loads the plugin now. Off unloads it now.</p>
+    <ul id="list"></ul>
+    <p class="empty" id="empty" hidden>No plugins found.</p>
+  </div>
+  <script>
+    const listEl = document.getElementById('list');
+    const emptyEl = document.getElementById('empty');
+
+    function lotusIpc() {
+      return window.lotus?.ipc || window.lotus || null;
+    }
+
+    function render(plugins) {
+      listEl.textContent = '';
+      const rows = Array.isArray(plugins) ? plugins : [];
+      emptyEl.hidden = rows.length > 0;
+      for (const p of rows) {
+        const li = document.createElement('li');
+        const text = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = p.name || p.id;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = p.version ? p.id + '  ' + p.version : p.id;
+        text.append(name, meta);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = p.enabled ? 'on' : '';
+        btn.textContent = p.enabled ? 'On' : 'Off';
+        btn.setAttribute('aria-pressed', p.enabled ? 'true' : 'false');
+        btn.addEventListener('click', () => {
+          const ipc = lotusIpc();
+          if (ipc?.send) ipc.send('atrium-plugin-enabled', { id: p.id, enabled: !p.enabled });
+        });
+        li.append(text, btn);
+        listEl.append(li);
+      }
+    }
+
+    function onList(d) {
+      render(d && d.plugins);
+    }
+
+    window.addEventListener('atrium-plugin-manager', (e) => onList(e.detail));
+    const eventSource = window.lotus?.on
+      ? window.lotus
+      : window.lotus?.ipc?.on
+        ? window.lotus.ipc
+        : null;
+    if (eventSource) eventSource.on('atrium-plugin-manager', onList);
+  </script>
+</body>
+</html>

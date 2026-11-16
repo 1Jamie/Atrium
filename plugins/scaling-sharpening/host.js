@@ -1,19 +1,16 @@
 'use strict';
 
 async function activate(ctx) {
-  await ctx.registerTab({
+  await ctx.registerContribution({
     id: 'scaling',
     label: 'Scaling',
-    order: 30,
-    entry: 'ui/index.html',
-    input: { mode: 'spatial', handlesBack: false },
+    sortKey: 30,
+    content: { kind: 'servo', entry: 'ui/index.html' },
+    input: { mode: 'pointer' },
   });
 
   function pushState() {
-    const cfg =
-      typeof ctx.shell.getUpscale === 'function'
-        ? ctx.shell.getUpscale()
-        : ctx.shell._upscale || {};
+    const cfg = ctx.shell.getUpscale ? ctx.shell.getUpscale() : {};
     ctx.ipc.send('upscale-state', cfg);
   }
 
@@ -27,23 +24,12 @@ async function activate(ctx) {
     }
   });
 
-  if (typeof ctx.shell.on === 'function') {
-    ctx.shell.on('upscale-changed', (cfg) => {
-      ctx.ipc.send('upscale-state', cfg);
-    });
-  }
-
-  ctx.onAction((act) => {
-    if (!act || !act.action) return false;
-    if (act.action === 'Nav' || act.action === 'Confirm') {
-      ctx.ipc.send('action', act);
-      return true;
-    }
-    return false;
+  ctx.subscribe('upscale-changed', (cfg) => {
+    ctx.ipc.send('upscale-state', cfg);
   });
 
   setTimeout(pushState, 400);
-  ctx.log('scaling-sharpening tab active');
+  ctx.log('scaling-sharpening contribution active');
 }
 
 async function deactivate(ctx) {
