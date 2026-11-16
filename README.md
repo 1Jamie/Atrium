@@ -45,9 +45,11 @@ atrium -w 1280 -h 720 -f -- %command%
 
 ## Plugins
 
+How they load, how to write one, and the install/pack commands: [docs/plugins.md](docs/plugins.md).
+
 ```bash
 atrium --install-plugin /path/to/plugin-or.zip
 atrium --remove-plugin discord-sidecar
 ```
 
-Install copies the plugin to `~/.config/lotus-atrium/plugins/<id>` and writes `.atrium-user-plugin`. The Discord sidecar is a separate prerelease: [atrium-discord](https://github.com/1Jamie/atrium-discord/releases).
+Discord is a separate package: [atrium-discord](https://github.com/1Jamie/atrium-discord/releases).
