@@ -47,30 +47,39 @@
       font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--atrium-text-dim);
+      font-weight: 700;
+      opacity: 0.8;
     }
     .card-hero {
       font-size: 22px;
       font-weight: 800;
       line-height: 1;
-      color: var(--atrium-primary);
     }
     .card-hero.waiting {
       font-size: 14px;
       font-weight: 600;
-      color: var(--atrium-text-muted);
+      color: var(--atrium-text-muted) !important;
     }
     .card-sub {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--atrium-text);
+      font-size: 12px;
+      font-weight: 700;
       line-height: 1.35;
     }
     .card-meta {
       font-size: 10px;
-      color: var(--atrium-text-muted);
+      font-weight: 600;
       line-height: 1.4;
+      opacity: 0.88;
     }
+    .card-fps .card-label,
+    .card-fps .card-hero { color: var(--atrium-stat-fps); }
+    .card-fps .card-meta { color: var(--atrium-stat-lows); }
+    .card-ft .card-label,
+    .card-ft .card-sub { color: var(--atrium-stat-frametime); }
+    .card-ft .card-meta { color: var(--atrium-stat-surf); }
+    .card-cpu .card-label,
+    .card-cpu .card-sub { color: var(--atrium-stat-cpu); }
+    .card-cpu .card-meta { color: var(--atrium-stat-ram); }
     .graph {
       height: 56px;
       background: rgba(0, 0, 0, 0.22);
@@ -105,11 +114,11 @@
   <div class="panel atrium-panel">
     <header class="hdr">
       <h1>PERF · DIAGNOSTICS</h1>
-      <p class="hint">D-Pad / Arrows to navigate · Enter to toggle</p>
+      <p class="hint">Click or Tab to move · Enter to toggle</p>
     </header>
 
     <div class="summary">
-      <div class="atrium-card summary-card">
+      <div class="atrium-card summary-card card-fps">
         <span class="card-label">Frame rate</span>
         <div class="card-hero waiting atrium-num" id="fps">—</div>
         <div class="card-meta atrium-num">
@@ -118,12 +127,12 @@
           <span id="low01">P999 —</span>
         </div>
       </div>
-      <div class="atrium-card summary-card">
+      <div class="atrium-card summary-card card-ft">
         <span class="card-label">Frame · ms</span>
         <div class="card-sub atrium-num" id="ft">—</div>
         <div class="card-meta atrium-num" id="pacing">—</div>
       </div>
-      <div class="atrium-card summary-card">
+      <div class="atrium-card summary-card card-cpu">
         <span class="card-label">Processor</span>
         <div class="card-sub atrium-num" id="cpu">—</div>
         <div class="card-meta atrium-num" id="gpu">GPU —</div>
@@ -136,6 +145,30 @@
       <h2>HUD pill fields</h2>
       <p>Choose what the in-game overlay pill shows (always passthrough).</p>
       <div class="toggles" id="toggles"></div>
+      <div class="atrium-slider-row" style="margin-top: 10px;">
+        <div class="copy">
+          <strong>Pill opacity</strong>
+          <span>In-game glass only · lower shows more game through</span>
+        </div>
+        <div class="control atrium-stepper">
+          <button type="button" class="atrium-focusable" id="opDec" tabindex="0" aria-label="Decrease opacity">−</button>
+          <div
+            class="atrium-slider atrium-focusable"
+            id="opSlider"
+            role="slider"
+            tabindex="0"
+            aria-valuemin="15"
+            aria-valuemax="90"
+            aria-valuenow="42"
+            aria-label="Pill background opacity"
+          >
+            <div class="track"><span class="fill" id="opFill"></span></div>
+            <div class="thumb" id="opThumb"></div>
+          </div>
+          <span class="val atrium-num" id="opVal">42%</span>
+          <button type="button" class="atrium-focusable" id="opInc" tabindex="0" aria-label="Increase opacity">+</button>
+        </div>
+      </div>
     </section>
   </div>
   <script>
@@ -145,23 +178,64 @@
       lows: true,
       cpu: true,
       ram: true,
+      self: true,
       pool: true,
       surf: true,
       graph: false,
       hint: true,
+      opacity: 0.42,
     };
-    const TOGGLE_KEYS = ['fps', 'frametime', 'lows', 'cpu', 'ram', 'pool', 'surf', 'graph'];
+    const TOGGLE_KEYS = ['fps', 'frametime', 'lows', 'cpu', 'ram', 'self', 'pool', 'surf', 'graph'];
     const LABELS = {
       fps: 'FPS',
       frametime: 'Frametime',
       lows: 'P99 / P999',
       cpu: 'CPU',
-      ram: 'RAM',
+      ram: 'System RAM',
+      self: 'Atrium self (PSS)',
       pool: 'UMA pool split',
       surf: 'Surface / pacing',
       graph: 'Mini graph',
     };
     let fields = Object.assign({}, DEFAULT_FIELDS);
+    const opSlider = document.getElementById('opSlider');
+    const opFill = document.getElementById('opFill');
+    const opThumb = document.getElementById('opThumb');
+    const opVal = document.getElementById('opVal');
+    const OP_MIN = 15;
+    const OP_MAX = 90;
+    let opDragging = false;
+
+    function clampOpacity(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return DEFAULT_FIELDS.opacity;
+      return Math.max(0.15, Math.min(0.9, n));
+    }
+    function clampPct(pct) {
+      const n = Math.round(Number(pct));
+      if (!Number.isFinite(n)) return Math.round(DEFAULT_FIELDS.opacity * 100);
+      return Math.max(OP_MIN, Math.min(OP_MAX, n));
+    }
+    function syncOpacityUi(alpha) {
+      const a = clampOpacity(alpha);
+      fields.opacity = a;
+      const pct = clampPct(a * 100);
+      const t = (pct - OP_MIN) / (OP_MAX - OP_MIN);
+      opFill.style.width = (t * 100) + '%';
+      opThumb.style.left = (t * 100) + '%';
+      opVal.textContent = pct + '%';
+      opSlider.setAttribute('aria-valuenow', String(pct));
+    }
+    function setOpacityFromPct(pct, persist) {
+      syncOpacityUi(clampPct(pct) / 100);
+      if (persist !== false) pushConfig();
+    }
+    function pctFromPointerEvent(e) {
+      const rect = opSlider.getBoundingClientRect();
+      if (!(rect.width > 0)) return Math.round(fields.opacity * 100);
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      return clampPct(OP_MIN + (x / rect.width) * (OP_MAX - OP_MIN));
+    }
 
     const fpsEl = document.getElementById('fps');
     const ftEl = document.getElementById('ft');
@@ -246,6 +320,7 @@
         frameHistory.push(ft);
         if (frameHistory.length > HISTORY) frameHistory.shift();
         hasFrames = true;
+        scheduleGraph();
       }
       if (stats.fps_1_low != null) low1El.textContent = 'P99 ' + fmtFps(stats.fps_1_low);
       if (stats.fps_01_low != null) low01El.textContent = 'P999 ' + fmtFps(stats.fps_01_low);
@@ -281,13 +356,16 @@
     let rafPending = false;
     function renderGraph() {
       rafPending = false;
+      // Idle rAF while graph is off forced Servo paints every frame (anon climb
+      // with another always-on HUD like static-crosshair). Only loop when needed.
+      if (!fields.graph) return;
       const w = canvas.width;
       const h = canvas.height;
       g.clearRect(0, 0, w, h);
-      drawRefLine(REF_60 / FT_SCALE_MS, '#34d399');
-      drawRefLine(REF_30 / FT_SCALE_MS, '#f59e0b');
+      drawRefLine(REF_60 / FT_SCALE_MS, '#6ee7b7');
+      drawRefLine(REF_30 / FT_SCALE_MS, '#fbbf24');
       if (hasFrames) {
-        g.strokeStyle = '#34d399';
+        g.strokeStyle = '#7dd3fc';
         g.lineWidth = 1.5 * devicePixelRatio;
         g.setLineDash([]);
         g.beginPath();
@@ -304,11 +382,10 @@
       scheduleGraph();
     }
     function scheduleGraph() {
-      if (rafPending) return;
+      if (!fields.graph || rafPending) return;
       rafPending = true;
       requestAnimationFrame(renderGraph);
     }
-    scheduleGraph();
 
     function pushConfig() {
       if (window.AtriumPlugin) {
@@ -351,8 +428,54 @@
     function onConfig(cfg) {
       if (!cfg || typeof cfg !== 'object') return;
       fields = Object.assign({}, DEFAULT_FIELDS, cfg);
+      syncOpacityUi(fields.opacity);
       renderToggles();
+      scheduleGraph();
     }
+
+    opSlider.addEventListener('mousedown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      opDragging = true;
+      setOpacityFromPct(pctFromPointerEvent(e), false);
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!opDragging) return;
+      setOpacityFromPct(pctFromPointerEvent(e), false);
+    });
+    window.addEventListener('mouseup', () => {
+      if (!opDragging) return;
+      opDragging = false;
+      pushConfig();
+    });
+    // Servo sometimes drops mouseup outside the pane — release on leave too.
+    window.addEventListener('mouseleave', () => {
+      if (!opDragging) return;
+      opDragging = false;
+      pushConfig();
+    });
+    opSlider.addEventListener('keydown', (e) => {
+      const cur = Math.round(fields.opacity * 100);
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        setOpacityFromPct(cur - 5);
+        e.preventDefault();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        setOpacityFromPct(cur + 5);
+        e.preventDefault();
+      } else if (e.key === 'Home') {
+        setOpacityFromPct(OP_MIN);
+        e.preventDefault();
+      } else if (e.key === 'End') {
+        setOpacityFromPct(OP_MAX);
+        e.preventDefault();
+      }
+    });
+    document.getElementById('opDec').addEventListener('click', () => {
+      setOpacityFromPct(Math.round(fields.opacity * 100) - 5);
+    });
+    document.getElementById('opInc').addEventListener('click', () => {
+      setOpacityFromPct(Math.round(fields.opacity * 100) + 5);
+    });
 
     function onAction(act) {
       if (!window.AtriumFocus || !act) return false;
@@ -378,6 +501,7 @@
       }
     }, 100);
 
+    syncOpacityUi(fields.opacity);
     renderToggles();
   </script>
 </body>

@@ -109,16 +109,18 @@
       requestAnimationFrame(() => requestAnimationFrame(reportShellMetrics));
     }
 
-    window.addEventListener('atrium-shell-chrome', (e) => {
-      const d = e.detail || {};
+    function onShellChrome(d) {
+      d = d || {};
       if (d.mode) mode = d.mode;
       if (d.status && typeof d.status === 'object') status = d.status;
       render();
-    });
+    }
+    window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
 
     const eventSource = window.lotus?.on ? window.lotus
       : (window.lotus?.ipc?.on ? window.lotus.ipc : null);
     if (eventSource) {
+      eventSource.on('atrium-shell-chrome', onShellChrome);
       eventSource.on('nest:host-upscale', (data) => {
         if (data && data.mode) {
           status.upscaleMode = data.mode;

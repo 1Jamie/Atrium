@@ -148,10 +148,99 @@
     if (items[0]) setFocused(items[0]);
   }
 
-  window.AtriumFocus = { move, confirm, ensureInitial, setFocused, listFocusables };
+  function clearControllerCursor() {
+    setFocused(null);
+    document.body.classList.remove('controller-input');
+    document.body.classList.add('mouse-input');
+  }
+
+  function markControllerInput() {
+    document.body.classList.remove('mouse-input');
+    document.body.classList.add('controller-input');
+  }
+
+  window.AtriumFocus = {
+    move,
+    confirm,
+    ensureInitial,
+    setFocused,
+    listFocusables,
+    clearControllerCursor,
+    markControllerInput,
+  };
+
+  // M/KB: hide the orange spatial ring so it does not sit on a random option.
+  window.addEventListener(
+    'pointerdown',
+    () => {
+      clearControllerCursor();
+    },
+    true
+  );
+  window.addEventListener(
+    'mousemove',
+    () => {
+      if (document.querySelector('.atrium-focusable.is-focused')) {
+        clearControllerCursor();
+      }
+    },
+    { passive: true, capture: true }
+  );
+
+  window.addEventListener('atrium-shell-chrome', (e) => {
+    const d = (e && e.detail) || {};
+    if (d.inputDevice === 'mouse' || d.inputDevice === 'keyboard') {
+      clearControllerCursor();
+    } else if (d.inputDevice === 'controller') {
+      markControllerInput();
+      ensureInitial();
+    }
+  });
 
   window.addEventListener('atrium-pane-shown', () => {
-    setTimeout(ensureInitial, 30);
+    // Only seed spatial focus when the controller is the active device.
+    setTimeout(() => {
+      if (document.body.classList.contains('mouse-input')) return;
+      ensureInitial();
+    }, 30);
   });
-  setTimeout(ensureInitial, 200);
+
+  // Host pad Nav/Confirm arrives on the Lotus pane WS (not evaluate_javascript).
+  function wireLotusFocus() {
+    const lotus = window.lotus?.ipc || window.lotus;
+    if (!lotus || typeof lotus.on !== 'function' || window.AtriumFocus._lotusWired) {
+      return !!(lotus && typeof lotus.on === 'function');
+    }
+    window.AtriumFocus._lotusWired = true;
+    lotus.on('atrium-focus', (msg) => {
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.action === 'move' && msg.dir) move(String(msg.dir));
+      else if (msg.action === 'confirm') confirm();
+    });
+    lotus.on('atrium-shell-chrome', (d) => {
+      d = d || {};
+      if (d.inputDevice === 'mouse' || d.inputDevice === 'keyboard') {
+        clearControllerCursor();
+      } else if (d.inputDevice === 'controller') {
+        markControllerInput();
+        ensureInitial();
+      }
+    });
+    lotus.on('atrium-pane-shown', () => {
+      setTimeout(() => {
+        if (document.body.classList.contains('mouse-input')) return;
+        ensureInitial();
+      }, 30);
+    });
+    return true;
+  }
+  let focusWireTries = 0;
+  const focusWireWait = setInterval(() => {
+    if (wireLotusFocus() || ++focusWireTries > 50) clearInterval(focusWireWait);
+  }, 100);
+  wireLotusFocus();
+
+  setTimeout(() => {
+    if (!document.body.classList.contains('mouse-input')) ensureInitial();
+  }, 200);
 })();

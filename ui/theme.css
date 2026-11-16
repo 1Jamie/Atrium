@@ -1,20 +1,29 @@
 /* Atrium Botanical — shared design tokens + controller focus */
 :root {
-  --atrium-bg: rgba(11, 15, 14, 0.86);
-  --atrium-bg-elevated: rgba(17, 24, 22, 0.92);
-  --atrium-bg-card: rgba(255, 255, 255, 0.03);
-  --atrium-border: rgba(52, 211, 153, 0.16);
-  --atrium-border-subtle: rgba(255, 255, 255, 0.08);
-  --atrium-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.09);
-  --atrium-primary: #34d399;
-  --atrium-primary-soft: rgba(52, 211, 153, 0.14);
-  --atrium-warm: #f59e0b;
-  --atrium-warm-soft: rgba(245, 158, 11, 0.14);
-  --atrium-danger: #f87171;
-  --atrium-info: #60a5fa;
-  --atrium-text: #ecfdf5;
-  --atrium-text-muted: #94a39e;
-  --atrium-text-dim: #5c6b66;
+  /* Overlay settings glass — opaque enough to read copy over the game. */
+  --atrium-bg: rgba(11, 15, 14, 0.82);
+  --atrium-bg-elevated: rgba(17, 24, 22, 0.88);
+  --atrium-bg-card: rgba(255, 255, 255, 0.05);
+  --atrium-border: rgba(52, 211, 153, 0.22);
+  --atrium-border-subtle: rgba(255, 255, 255, 0.12);
+  --atrium-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --atrium-primary: #6ee7b7;
+  --atrium-primary-soft: rgba(110, 231, 183, 0.16);
+  --atrium-warm: #fbbf24;
+  --atrium-warm-soft: rgba(251, 191, 36, 0.16);
+  --atrium-danger: #fb7185;
+  --atrium-info: #7dd3fc;
+  --atrium-text: #f5fff9;
+  --atrium-text-muted: #c5d4ce;
+  --atrium-text-dim: #8fa39b;
+  /* Perf / telemetry hues — shared by HUD pill + diagnostics panel. */
+  --atrium-stat-fps: #6ee7b7;
+  --atrium-stat-frametime: #7dd3fc;
+  --atrium-stat-lows: #fbbf24;
+  --atrium-stat-cpu: #fb7185;
+  --atrium-stat-ram: #2dd4bf;
+  --atrium-stat-self: #e879f9;
+  --atrium-stat-surf: #e2e8f0;
   --atrium-radius: 10px;
   --atrium-radius-sm: 6px;
   --atrium-font-sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -196,4 +205,101 @@ html, body {
   font-family: var(--atrium-font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 13px;
+}
+
+.atrium-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: var(--atrium-bg-card);
+  border: 1px solid var(--atrium-border-subtle);
+  border-radius: var(--atrium-radius-sm);
+  box-shadow: var(--atrium-highlight-top);
+}
+
+.atrium-slider-row .copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.atrium-slider-row .copy strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--atrium-text);
+}
+
+.atrium-slider-row .copy span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--atrium-text-dim);
+  line-height: 1.35;
+}
+
+.atrium-slider-row .control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* Custom track — Servo does not reliably drag native <input type="range">. */
+.atrium-slider {
+  position: relative;
+  width: 120px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.atrium-slider .track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--atrium-border-subtle);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.atrium-slider .fill {
+  display: block;
+  height: 100%;
+  width: 42%;
+  background: var(--atrium-primary-soft);
+  border-right: 1px solid rgba(110, 231, 183, 0.45);
+  pointer-events: none;
+}
+
+.atrium-slider .thumb {
+  position: absolute;
+  top: 50%;
+  left: 42%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--atrium-primary);
+  border: 2px solid rgba(11, 15, 14, 0.9);
+  box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.45);
+  pointer-events: none;
+}
+
+.atrium-slider:focus-visible,
+.atrium-slider.is-focused {
+  outline: 2px solid var(--atrium-warm);
+  outline-offset: 3px;
+  border-radius: 6px;
 }

@@ -101,9 +101,9 @@
 <body class="game-mode">
   <div class="chrome" id="chrome">
     <div class="dock-row">
-      <span class="bump" title="Previous tab">LB</span>
+      <span class="bump" title="Previous tab">F7</span>
       <div class="dock-slots" id="dockSlots"></div>
-      <span class="bump" title="Next tab">RB</span>
+      <span class="bump" title="Next tab">F8</span>
     </div>
   </div>
   <script>
@@ -163,16 +163,18 @@
       requestAnimationFrame(() => requestAnimationFrame(reportShellMetrics));
     }
 
-    window.addEventListener('atrium-shell-chrome', (e) => {
-      const d = e.detail || {};
+    function onShellChrome(d) {
+      d = d || {};
       if (d.mode) mode = d.mode;
       if (Array.isArray(d.dock)) dock = d.dock;
       render();
-    });
+    }
+    window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
 
     const eventSource = window.lotus?.on ? window.lotus
       : (window.lotus?.ipc?.on ? window.lotus.ipc : null);
     if (eventSource) {
+      eventSource.on('atrium-shell-chrome', onShellChrome);
       eventSource.on('atrium-game-stats', (stats) => {
         const ipc = lotusIpc();
         if (ipc?.send) ipc.send('atrium-forward-stats', stats);

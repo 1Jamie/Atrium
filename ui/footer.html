@@ -75,6 +75,8 @@
         lb_rb: { t: 'LB/RB', c: 'wide' },
         start_select: { t: 'Start+Sel', c: 'wide' },
         dpad: { t: 'D-Pad', c: 'wide' },
+        keys: { t: 'KB', c: 'wide' },
+        esc: { t: 'Esc', c: '' },
       };
       const m = map[g] || { t: String(g || '').toUpperCase(), c: '' };
       el.textContent = m.t;
@@ -103,15 +105,19 @@
       }
     }
 
-    window.addEventListener('atrium-shell-chrome', (e) => {
-      const d = e.detail || {};
+    function onShellChrome(d) {
+      d = d || {};
       if (d.mode) mode = d.mode;
       if (Array.isArray(d.footer)) footer = d.footer;
       render();
-    });
+    }
+    window.addEventListener('atrium-shell-chrome', (e) => onShellChrome(e.detail));
 
     try {
       const ipc = window.lotus?.ipc || window.lotus;
+      if (ipc && typeof ipc.on === 'function') {
+        ipc.on('atrium-shell-chrome', onShellChrome);
+      }
       if (ipc && typeof ipc._connectWs === 'function') ipc._connectWs();
     } catch (e) {}
     render();

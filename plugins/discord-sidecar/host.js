@@ -12,6 +12,11 @@ const {
   clearToken,
   trySeedFromKeyring,
 } = require('../../lib/discord_vault');
+const {
+  ensureGhostty,
+  readReadyBinary,
+  ghosttyLaunchArgs,
+} = require('../../lib/ghostty_runtime');
 const { RemoteAuthSession, DESKTOP_UA_SHORT } = require('./remote_auth');
 
 const DISCORDO = path.join(os.homedir(), '.local', 'bin', 'discordo');
@@ -48,12 +53,26 @@ function hostSpawn(bin, args) {
   return null;
 }
 
-function discordoLaunch() {
-  const term = String(process.env.ATRIUM_DISCORD_TERM || 'ptyxis').toLowerCase();
+/**
+ * Prefer cached Ghostty → discordo. Explicit ATRIUM_DISCORD_TERM=weston|ptyxis
+ * keeps the old host-terminal path for debugging.
+ */
+function discordoLaunch(ghosttyBin) {
+  const term = String(process.env.ATRIUM_DISCORD_TERM || 'ghostty').toLowerCase();
   if (term.includes('weston')) {
     const weston = hostSpawn('/usr/bin/weston-terminal', [`--shell=${DISCORDO}`]);
     if (weston) return weston;
   }
+  if (term.includes('ptyxis')) {
+    const ptyxisArgs = ['-s', '--fullscreen', '-T', 'Discord', '--', DISCORDO];
+    const ptyxis = hostSpawn('/usr/bin/ptyxis', ptyxisArgs);
+    if (ptyxis) return ptyxis;
+    return { command: 'ptyxis', args: ptyxisArgs };
+  }
+  if (ghosttyBin) {
+    return ghosttyLaunchArgs(ghosttyBin, DISCORDO);
+  }
+  // Last resort if ensure failed and override wasn't set.
   const ptyxisArgs = ['-s', '--fullscreen', '-T', 'Discord', '--', DISCORDO];
   const ptyxis = hostSpawn('/usr/bin/ptyxis', ptyxisArgs);
   if (ptyxis) return ptyxis;
@@ -107,15 +126,126 @@ async function activate(ctx) {
   let suppressExitHandler = false;
   let authTabDisp = null;
   let chatPaneDisp = null;
+  let prepTabDisp = null;
+  let ghosttyBin = readReadyBinary();
+  let ghosttyEnsure = null;
 
   function sendAuth(channel, data) {
     ctx.ipc.send(channel, data);
+  }
+
+  function sendPrep(data) {
+    ctx.ipc.send('prep-status', data || {});
   }
 
   function stopAuthSession() {
     if (authSession) {
       authSession.stop({ silent: true });
       authSession = null;
+    }
+  }
+
+  function wantGhostty() {
+    const term = String(process.env.ATRIUM_DISCORD_TERM || 'ghostty').toLowerCase();
+    return !term.includes('weston') && !term.includes('ptyxis');
+  }
+
+  /** Kick download/extract without awaiting — never blocks game seat. */
+  function beginGhosttyEnsure() {
+    if (!wantGhostty()) return null;
+    if (ghosttyBin) return Promise.resolve(ghosttyBin);
+    if (ghosttyEnsure) return ghosttyEnsure;
+    ctx.log('ghostty: ensuring AppImage extract cache…');
+    ghosttyEnsure = ensureGhostty((ev) => {
+      sendPrep({
+        text: ev.message || ev.phase,
+        percent: ev.percent == null ? null : ev.percent,
+        kind: ev.phase === 'ready' ? 'ok' : '',
+      });
+    })
+      .then((bin) => {
+        ghosttyBin = bin;
+        ctx.log(`ghostty ready: ${bin}`);
+        return bin;
+      })
+      .catch((e) => {
+        ctx.log(`ghostty ensure failed: ${e.message || e}`);
+        throw e;
+      })
+      .finally(() => {
+        ghosttyEnsure = null;
+      });
+    return ghosttyEnsure;
+  }
+
+  async function showPreparingUi() {
+    if (ctx.getPane('prep')) {
+      const pane = ctx.getPane('prep');
+      pane.setVisible(true);
+      try {
+        await ctx.shell.selectDockSlot('discord-sidecar:prep');
+      } catch (_) {}
+      return pane;
+    }
+    prepTabDisp = await ctx.registerTab({
+      id: 'prep',
+      label: 'Discord',
+      order: 9,
+      entry: 'ui/preparing.html',
+      input: { mode: 'spatial', handlesBack: true },
+      layoutRect: (w) => discordRect(w),
+    });
+    try {
+      await ctx.shell.selectDockSlot('discord-sidecar:prep');
+    } catch (_) {}
+    return ctx.getPane('prep');
+  }
+
+  async function hidePreparingUi() {
+    if (prepTabDisp) {
+      try {
+        prepTabDisp.dispose();
+      } catch (_) {}
+      prepTabDisp = null;
+    } else if (ctx.getPane('prep')) {
+      try {
+        ctx.destroyPane('prep');
+      } catch (_) {}
+      try {
+        ctx.shell.removeDockSlot('discord-sidecar:prep');
+      } catch (_) {}
+    }
+  }
+
+  /**
+   * Wait for Ghostty when needed. Shows overlay preparing UI if the user is
+   * already looking at Discord; otherwise downloads quietly in the background.
+   */
+  async function resolveGhosttyBin({ showUi } = { showUi: false }) {
+    if (!wantGhostty()) return null;
+    if (ghosttyBin) return ghosttyBin;
+    const pending = beginGhosttyEnsure();
+    if (!pending) return null;
+    if (showUi) {
+      await showPreparingUi();
+      sendPrep({ text: 'Checking Ghostty…', percent: null });
+    }
+    try {
+      const bin = await pending;
+      if (showUi) await hidePreparingUi();
+      return bin;
+    } catch (e) {
+      if (showUi) {
+        sendPrep({
+          text: `Ghostty failed — falling back…`,
+          kind: 'error',
+          percent: null,
+        });
+        await new Promise((r) => setTimeout(r, 600));
+        await hidePreparingUi();
+      }
+      // Fall through to Ptyxis rather than hard-fail chat.
+      return null;
     }
   }
 
@@ -138,7 +268,8 @@ async function activate(ctx) {
 
   async function ensureAppPane(token) {
     if (ctx.getPane('app')) return ctx.getPane('app');
-    const launch = discordoLaunch();
+    const bin = await resolveGhosttyBin({ showUi: true });
+    const launch = discordoLaunch(bin);
     ctx.log(`discord pane command: ${launch.command} ${launch.args.join(' ')}`);
     await ctx.createExternalPane('app', {
       command: launch.command,
@@ -156,7 +287,7 @@ async function activate(ctx) {
       interactive: 'overlay-only',
       dbus: {
         notifications: 'mirror',
-        notificationApps: ['discordo', 'Discord', 'discord', 'com.discordapp.Discord'],
+        notificationApps: ['discordo', 'Discord', 'discord', 'com.discordapp.Discord', 'atrium-discordo'],
       },
       reposition(p, w) {
         const next = discordRect(w);
@@ -241,6 +372,7 @@ async function activate(ctx) {
   }
 
   async function showAuthUi() {
+    await hidePreparingUi();
     await ensureAuthTab();
     await ctx.shell.selectDockSlot('discord-sidecar:auth');
     sendAuth('auth-status', { text: 'Preparing QR…' });
@@ -293,6 +425,8 @@ async function activate(ctx) {
         return false;
       }
 
+      // Ensure Ghostty before selecting Chat so F9 doesn't flash an empty dock.
+      await resolveGhosttyBin({ showUi: true });
       await ensureChatDock(token);
       await ctx.shell.selectDockSlot('discord-sidecar:app');
       return true;
@@ -322,11 +456,16 @@ async function activate(ctx) {
 
   // F9 / dock: open Chat if vaulted, else auth tab.
   ctx._onTogglePane = async (localId) => {
-    if (localId !== 'app' && localId !== 'auth') return;
+    if (localId !== 'app' && localId !== 'auth' && localId !== 'prep') return;
     const chatKey = 'discord-sidecar:app';
     const authKey = 'discord-sidecar:auth';
     if (localId === 'auth') {
       await showAuthUi();
+      return;
+    }
+    if (localId === 'prep') {
+      await showPreparingUi();
+      beginGhosttyEnsure();
       return;
     }
     const chatVisible =
@@ -335,16 +474,22 @@ async function activate(ctx) {
       ctx.getPane('app') &&
       ctx.getPane('app').visible;
     const authVisible = ctx.getPane('auth') && ctx.getPane('auth').visible;
-    if (chatVisible || authVisible) {
+    const prepVisible = ctx.getPane('prep') && ctx.getPane('prep').visible;
+    if (chatVisible || authVisible || prepVisible) {
       if (ctx.getPane('app')) ctx.getPane('app').setVisible(false);
       stopAuthSession();
       if (ctx.getPane('auth')) ctx.getPane('auth').setVisible(false);
+      if (ctx.getPane('prep')) ctx.getPane('prep').setVisible(false);
       return;
     }
     await ensureDiscord();
   };
 
+  // Background ensure on plugin init — does not await, does not block game.
+  beginGhosttyEnsure();
+
   // Pre-register Chat dock when token already exists so F9 / dock work immediately.
+  // Pane spawn still waits on Ghostty inside ensure().
   if (readToken()) {
     ensureChatDock(readToken()).catch((e) => ctx.log('chat dock seed failed:', e.message));
   }
@@ -373,11 +518,16 @@ async function activate(ctx) {
         stopAuthSession();
         return true;
       }
+      const prep = ctx.getPane('prep');
+      if (prep && prep.visible) {
+        prep.setVisible(false);
+        return true;
+      }
     }
     return false;
   });
 
-  ctx.log('discord-sidecar active (auth tab → chat pane dock)');
+  ctx.log('discord-sidecar active (ghostty cache → auth tab → chat pane)');
 }
 
 async function deactivate(ctx) {
