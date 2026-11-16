@@ -7,7 +7,7 @@
  *   atrium -w 1280 -h 720 -f -- %command%
  *   atrium -w 1280 -h 720 -W 1920 -H 1080 -- %command%
  *
- * Keys: F12 game↔overlay, F9 Discord, F11 fullscreen, F7/F8 dock tabs
+ * Keys: F12 game↔overlay, F11 fullscreen, F7/F8 dock tabs
  * Plugins: ~/.config/lotus-atrium/plugins (+ in-repo defaults)
  */
 const path = require('path');
@@ -36,7 +36,7 @@ Options (same polarity as gamescope):
   --rcas-sharpness <n>     RCAS stops (0=max, default 0.2)
   --help                   Show this help
 
-Keys: F12 game↔overlay (always) · F7/F8 dock tabs · F9 Discord / F10 HUD / F11 fullscreen (overlay only)
+Keys: F12 game↔overlay (always) · F7/F8 dock tabs · F11 fullscreen (overlay only)
 `);
   process.exit(exitCode);
 }
@@ -250,8 +250,7 @@ console.log(
   `[atrium] ${cfg.gameLabel}  nested ${cfg.gameWidth}x${cfg.gameHeight}` +
     `  (size=${cfg.sizeSource})` +
     (cfg.gameMode ? '  gamemode' : '') +
-    (cfg.fullscreen ? '  fullscreen' : '') +
-    (cfg.discord ? '  discord=F9' : '')
+    (cfg.fullscreen ? '  fullscreen' : '')
 );
 
 startShell(cfg).catch((err) => {
