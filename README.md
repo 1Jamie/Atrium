@@ -1,8 +1,8 @@
 # Atrium
 
-Nested Wayland/Xwayland compositor and Steam launch wrapper built on Lotus (`@lotus-gui/core`). Atrium owns the shell, plugins, profile, and Steam/Game Mode wrapper. Lotus owns the nest (`createExternalAppPane`, `setGameMode`, host hotkeys).
+Nested Wayland/Xwayland compositor and Steam launch wrapper on Lotus (`@lotus-gui/core`). The shell, plugins, profile, and Steam/Game Mode wrapper are in this repo. Nest primitives (`createExternalAppPane`, `setGameMode`, host hotkeys) are in Lotus.
 
-Current line is the **0.5.0-devel** prerelease, aligned with Lotus `0.5.0-devel`. It is not a stable release.
+This is the `0.5.0-devel` prerelease, same line as Lotus `0.5.0-devel`. It is not a stable release.
 
 ## Install
 
@@ -13,7 +13,7 @@ chmod +x Atrium-0.5.0-devel-x86_64.AppImage
 ./Atrium-0.5.0-devel-x86_64.AppImage
 ```
 
-That extracts into `~/.local/share/atrium` and, when `~/.local/bin/atrium` is missing or already points at an Atrium install, links it there. If that path is some other program, the installer leaves it alone and prints a note. No root, no `.desktop` file.
+That extracts into `~/.local/share/atrium`. If `~/.local/bin/atrium` is missing, or it already points at an Atrium install, the installer links it there. If that path is some other program, the installer leaves it alone and prints a note. No root. No `.desktop` file.
 
 ```bash
 ./Atrium-0.5.0-devel-x86_64.AppImage --prefix ~/.local/share/atrium
@@ -45,7 +45,7 @@ atrium -w 1280 -h 720 -f -- %command%
 
 ## Plugins
 
-How they load, how to write one, and the install/pack commands: [docs/plugins.md](docs/plugins.md).
+How they load, how to write one, and the install and pack commands are in [docs/plugins.md](docs/plugins.md).
 
 ```bash
 atrium --install-plugin /path/to/plugin-or.zip
