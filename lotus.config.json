@@ -1,6 +1,6 @@
 {
   "name": "Atrium",
-  "version": "0.1.0",
+  "version": "0.5.0-devel",
   "appId": "org.lotus.atrium",
   "executableName": "atrium-host",
   "main": "main.js",
