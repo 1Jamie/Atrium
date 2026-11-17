@@ -10,6 +10,7 @@
  * Keys: F12 game↔overlay, F11 fullscreen, F7/F8 dock tabs
  * Plugins: ~/.config/lotus-atrium/plugins (+ in-repo defaults)
  */
+const fs = require('fs');
 const path = require('path');
 const { app } = require('@lotus-gui/core');
 const { startShell } = require('./lib/shell');
@@ -92,7 +93,20 @@ function parseArgs(argv) {
     gameMode,
   };
 
-  const raw = argv.slice(2);
+  // node argv is [node, main.js, ...user]. SEA is [host, host, ...user].
+  // The extra host path is not always byte-identical to execPath (symlink
+  // vs realpath), and it was being taken as the game command.
+  let raw = argv.slice(1);
+  const selfPath = (() => {
+    try { return fs.realpathSync(process.execPath); } catch (_) { return process.execPath; }
+  })();
+  const isSelf = (p) => {
+    if (!p || p.startsWith('-')) return false;
+    if (p === process.execPath || p === process.argv[0]) return true;
+    if (p.endsWith('/main.js') || p.endsWith('/atrium-host')) return true;
+    try { return fs.realpathSync(p) === selfPath; } catch (_) { return false; }
+  };
+  while (raw.length && isSelf(raw[0])) raw.shift();
   const cmd = [];
   let passthrough = false;
 
@@ -241,6 +255,7 @@ function shortGameLabel(command, args) {
 
 const cfg = parseArgs(process.argv);
 cfg.gameLabel = shortGameLabel(cfg.command, cfg.args);
+console.error(`[atrium] parsed command=${cfg.command} args=${cfg.args.length}`);
 
 process.env.ATRIUM_GAME_WIDTH = String(cfg.gameWidth);
 process.env.ATRIUM_GAME_HEIGHT = String(cfg.gameHeight);

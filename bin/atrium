@@ -195,22 +195,22 @@ atrium_gamescope_fg_watch() {
 # Save Steam's full preload, then strip only gameoverlayrenderer* from the host.
 # Proton child restores ATRIUM_SAVED_LD_PRELOAD in Rust; Discord/Xwayland must not.
 atrium_strip_host_overlay_preload() {
-  export ATRIUM_SAVED_LD_PRELOAD="${LD_PRELOAD:-}"
-  local cleaned="" part
+  local saved="" host="" part
   local IFS=':'
   for part in ${LD_PRELOAD:-}; do
     [[ -z "$part" ]] && continue
     case "${part,,}" in
+      *'$lib'*|*extest*) continue ;;
+    esac
+    if [[ -z "$saved" ]]; then saved="$part"; else saved="${saved}:${part}"; fi
+    case "${part,,}" in
       *gameoverlayrenderer*) continue ;;
     esac
-    if [[ -z "$cleaned" ]]; then
-      cleaned="$part"
-    else
-      cleaned="${cleaned}:${part}"
-    fi
+    if [[ -z "$host" ]]; then host="$part"; else host="${host}:${part}"; fi
   done
-  if [[ -n "$cleaned" ]]; then
-    export LD_PRELOAD="$cleaned"
+  export ATRIUM_SAVED_LD_PRELOAD="$saved"
+  if [[ -n "$host" ]]; then
+    export LD_PRELOAD="$host"
   else
     unset LD_PRELOAD || true
   fi
