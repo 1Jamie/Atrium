@@ -77,7 +77,8 @@ function main() {
   run('zip', [
     '-r', dest, '.',
     '-x', '*.git*',
-    '-x', '*.zip',
+    '-x', `${path.basename(dest)}`,
+    '-x', `${manifest.id}-*.zip`,
     '-x', 'build/Release/*.o',
     '-x', 'build/Release/*.obj',
   ], dir);
