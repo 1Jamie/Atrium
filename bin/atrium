@@ -228,6 +228,7 @@ if atrium_detect_gamemode; then
   export STEAM_GAME_DISPLAY_0="$GAME_DISPLAY"
   export DISPLAY="$GAME_DISPLAY"
   export WINIT_UNIX_BACKEND="${WINIT_UNIX_BACKEND:-x11}"
+  export WINIT_X11_SCALE_FACTOR="${WINIT_X11_SCALE_FACTOR:-1}"
   export XDG_SESSION_TYPE=x11
   export ATRIUM_FULLSCREEN="${ATRIUM_FULLSCREEN:-1}"
   # Host is EGL/GL (surfman), not Vulkan Gamescope WSI. Bazzite exports WSI=1
