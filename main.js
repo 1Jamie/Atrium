@@ -30,7 +30,10 @@ Options (same polarity as gamescope):
   -r, --refresh <Hz>       Nested refresh hint
   --discord / --no-discord Discord sidecar plugin (default: on)
   --hud                    Start in overlay input mode
-  --upscale off|sgsr|fsr1  Host upscaler (overrides per-game profile)
+  --upscale off|sgsr|fsr1|anime4k  Host upscaler (overrides per-game profile)
+  --anime4k-mode a|b|c     Anime4K mode: A (restore), B (soft), C (denoise)
+  --anime4k-tier s|m|l|vl|ul Anime4K CNN size: S (fast), M (balanced), L (high)
+  --anime4k-plus-a         Enable secondary Restore+Upscale pass
   --sharpen rcas|off       Optional RCAS after upscale/bilinear
   --sgsr-threshold <n>     SGSR edge threshold (0–1 or 0–255)
   --sgsr-sharpness <n>     SGSR edge sharpness (default 2)
@@ -205,6 +208,22 @@ function parseArgs(argv) {
       }
       if (a === '--rcas-sharpness') {
         out.rcasSharpness = raw[++i];
+        continue;
+      }
+      if (a === '--anime4k-mode') {
+        out.anime4kMode = raw[++i];
+        continue;
+      }
+      if (a === '--anime4k-tier') {
+        out.anime4kTier = raw[++i];
+        continue;
+      }
+      if (a === '--anime4k-plus-a') {
+        out.anime4kPlusA = true;
+        continue;
+      }
+      if (a === '--no-anime4k-plus-a') {
+        out.anime4kPlusA = false;
         continue;
       }
       if (a.startsWith('-')) {

@@ -20,7 +20,12 @@ async function activate(ctx) {
     if (typeof ctx.shell.applyUpscale === 'function') {
       const next = ctx.shell.applyUpscale(partial, { persist: true });
       ctx.ipc.send('upscale-state', next);
-      ctx.log('upscale →', next.mode, next.sharpenRcas ? '+rcas' : '');
+      let details = next.mode;
+      if (next.mode === 'anime4k') {
+        details += ` (${next.anime4kMode.toUpperCase()}${next.anime4kPlusA ? '+A' : ''}, ${next.anime4kTier.toUpperCase()})`;
+      }
+      if (next.sharpenRcas) details += ' +rcas';
+      ctx.log('upscale →', details);
     }
   });
 

@@ -25,7 +25,7 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
       gap: 20px;
       max-width: 1100px;
       margin: 0 auto;
@@ -49,8 +49,8 @@
     }
     .presets button {
       appearance: none;
-      min-height: 48px;
-      padding: 0 16px;
+      min-height: 40px;
+      padding: 0 14px;
       border-radius: var(--atrium-radius-sm);
       border: 1px solid var(--atrium-border-subtle);
       background: var(--atrium-bg-card);
@@ -59,15 +59,27 @@
       font-size: var(--atrium-text-secondary);
       font-weight: 650;
       cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .presets button:hover {
+      border-color: var(--atrium-border-active, rgba(255,255,255,0.2));
+      color: var(--atrium-text-primary, #fff);
+    }
+    .presets button.is-active {
+      background: var(--atrium-accent-muted, rgba(59, 130, 246, 0.2));
+      border-color: var(--atrium-accent, #3b82f6);
+      color: var(--atrium-accent-bright, #93c5fd);
     }
     .presets button:active { transform: scale(0.97); }
+
     .pipeline {
       padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       height: 100%;
       min-height: 220px;
+      overflow: hidden;
     }
     .pipeline .flow {
       display: flex;
@@ -78,12 +90,13 @@
     }
     .pipe-node {
       flex: 1 1 90px;
-      min-width: 90px;
-      padding: 12px 10px;
+      min-width: 80px;
+      padding: 10px 8px;
       border-radius: var(--atrium-radius-sm);
       background: rgba(0,0,0,0.28);
       border: 1px solid var(--atrium-border-subtle);
       text-align: center;
+      transition: all 0.2s ease;
     }
     .pipe-node .k {
       display: block;
@@ -92,7 +105,7 @@
       text-transform: uppercase;
       color: var(--atrium-text-dim);
       font-weight: 700;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .pipe-node .v {
       display: block;
@@ -106,23 +119,159 @@
       font-weight: 800;
       flex: 0 0 auto;
     }
-    .sgsr-only[hidden] { display: none !important; }
+
+    .flow-v {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .flow-v-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: var(--atrium-radius-sm);
+      background: rgba(0,0,0,0.24);
+      border: 1px solid var(--atrium-border-subtle);
+      font-size: 11px;
+      gap: 8px;
+    }
+    .flow-v-step .step-tag {
+      font-weight: 700;
+      color: var(--atrium-text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 10px;
+      flex: 0 0 auto;
+    }
+    .flow-v-step .step-name {
+      font-weight: 650;
+      color: var(--atrium-text-primary, #e2e8f0);
+      font-family: var(--atrium-font-mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1 1 auto;
+      text-align: left;
+    }
+    .flow-v-step .step-status {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.06);
+      color: var(--atrium-text-secondary);
+      flex: 0 0 auto;
+    }
+    .flow-v-step.active .step-status {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    .flow-v-step.bypassed {
+      opacity: 0.42;
+      border-style: dashed;
+    }
+    .flow-v-step.bypassed .step-name {
+      color: var(--atrium-text-dim);
+    }
+    .flow-v-step.bypassed .step-status {
+      background: rgba(255,255,255,0.03);
+      color: var(--atrium-text-dim);
+    }
+
+    .a4k-warning {
+      padding: 10px 12px;
+      border-radius: var(--atrium-radius-sm);
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .a4k-info {
+      font-size: 12px;
+      color: var(--atrium-text-dim);
+      line-height: 1.4;
+      margin-top: 4px;
+    }
+
+    .sgsr-only[hidden], .a4k-only[hidden], [hidden] { display: none !important; }
   </style>
 </head>
 <body data-accent="scaling">
   <div class="panel atrium-panel atrium-fade-in">
     <div class="grid">
+      <!-- Left Column: Controls -->
       <div class="col">
+        <!-- Upscaler Mode -->
         <section class="atrium-section">
           <div class="atrium-section-title">Upscaler</div>
           <div class="atrium-seg" id="modeSeg" role="group" aria-label="Upscaler mode">
             <button type="button" class="atrium-focusable" data-mode="off" tabindex="0">Off</button>
             <button type="button" class="atrium-focusable" data-mode="sgsr" tabindex="0">SGSR 1.0</button>
             <button type="button" class="atrium-focusable" data-mode="fsr1" tabindex="0">FSR 1.0</button>
+            <button type="button" class="atrium-focusable" data-mode="anime4k" tabindex="0">Anime4K</button>
           </div>
         </section>
 
-        <section class="atrium-section sgsr-only" id="sgsrSection">
+        <!-- Anime4K Section -->
+        <section class="atrium-section a4k-only" id="anime4kSection" hidden>
+          <div class="atrium-section-title">Anime4K Configuration</div>
+
+          <!-- Mode A / B / C -->
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="font-size:12px; font-weight:700; color:var(--atrium-text-secondary);">Mode Matrix</div>
+            <div class="atrium-seg" id="a4kModeSeg" role="group" aria-label="Anime4K Mode">
+              <button type="button" class="atrium-focusable" data-a4k-mode="a" tabindex="0">Mode A</button>
+              <button type="button" class="atrium-focusable" data-a4k-mode="b" tabindex="0">Mode B</button>
+              <button type="button" class="atrium-focusable" data-a4k-mode="c" tabindex="0">Mode C</button>
+            </div>
+            <div class="a4k-info" id="a4kModeDesc">
+              Mode A (Restore → Upscale): Best for 1080p+ sources with compression blur or ringing.
+            </div>
+          </div>
+
+          <!-- Quality / Network Tier (S / M / L + VL / UL unthrottled) -->
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+            <div style="font-size:12px; font-weight:700; color:var(--atrium-text-secondary);">Quality / Network Tier</div>
+            <div class="atrium-seg" id="a4kTierSeg" role="group" aria-label="Anime4K Quality Tier">
+              <button type="button" class="atrium-focusable" data-a4k-tier="s" tabindex="0">Fast (S)</button>
+              <button type="button" class="atrium-focusable" data-a4k-tier="m" tabindex="0">Balanced (M)</button>
+              <button type="button" class="atrium-focusable" data-a4k-tier="l" tabindex="0">High (L)</button>
+              <button type="button" class="atrium-focusable" data-a4k-tier="vl" id="tierVL" tabindex="0" hidden>Very High (VL)</button>
+              <button type="button" class="atrium-focusable" data-a4k-tier="ul" id="tierUL" tabindex="0" hidden>Ultra (UL)</button>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
+              <button type="button" class="atrium-toggle atrium-focusable" id="unthrottledToggle" role="switch" aria-checked="false" tabindex="0" style="padding:4px 0;">
+                <span style="font-size:12px;">Unthrottled (Heavy GPU)</span>
+                <span class="track" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div class="a4k-info" style="font-size:11px;">
+              Fast/Balanced/High map to CNN sizes (S/M/L). Each tier roughly doubles GPU compute time.
+            </div>
+          </div>
+
+          <!-- Secondary Pass (+A Toggle) -->
+          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+            <button type="button" class="atrium-toggle atrium-focusable" id="plusAToggle" role="switch" aria-checked="false" tabindex="0">
+              <span>Secondary Pass (+A)</span>
+              <span class="track" aria-hidden="true"></span>
+            </button>
+            <div class="a4k-info">
+              Appends secondary Restore → Upscale passes for ≥2× scaling ratios (e.g., 720p→1440p or 540p→1080p).
+            </div>
+            <div class="a4k-warning" id="plusAWarning" hidden>
+              ⚠️ Scale ratio is <span id="currentScaleRatio">1.0×</span> (< 2.0×). Upstream warns +A may oversharpen at 1×–1.5× scaling.
+            </div>
+          </div>
+        </section>
+
+        <!-- SGSR Parameters -->
+        <section class="atrium-section sgsr-only" id="sgsrSection" hidden>
           <div class="atrium-section-title">SGSR parameters</div>
           <button type="button" class="atrium-toggle atrium-focusable" id="edgeDir" role="switch" aria-checked="true" tabindex="0">
             <span>Use edge direction</span>
@@ -152,6 +301,7 @@
           </div>
         </section>
 
+        <!-- RCAS Sharpening -->
         <section class="atrium-section">
           <div class="atrium-section-title">RCAS sharpening</div>
           <button type="button" class="atrium-toggle atrium-focusable" id="rcasOn" role="switch" aria-checked="false" tabindex="0">
@@ -184,8 +334,9 @@
           </div>
         </section>
 
+        <!-- Presets -->
         <section class="atrium-section">
-          <div class="atrium-section-title">Presets</div>
+          <div class="atrium-section-title">Quick Presets</div>
           <div class="presets">
             <button type="button" class="atrium-press" data-preset="sharp">Sharp</button>
             <button type="button" class="atrium-press" data-preset="balanced">Balanced</button>
@@ -194,28 +345,45 @@
         </section>
       </div>
 
+      <!-- Right Column: Interactive Stage Graph / Pipeline -->
       <div class="col">
         <section class="atrium-section" style="height:100%">
-          <div class="atrium-section-title">Pipeline</div>
+          <div class="atrium-section-title">Pipeline Stages</div>
           <div class="atrium-card pipeline">
-            <div class="flow">
-              <div class="pipe-node">
-                <span class="k">Render</span>
-                <span class="v atrium-num" id="pipeRender">—</span>
-              </div>
-              <span class="pipe-arrow">→</span>
-              <div class="pipe-node">
-                <span class="k">Scaler</span>
-                <span class="v" id="pipeScaler">OFF</span>
-              </div>
-              <span class="pipe-arrow">→</span>
-              <div class="pipe-node">
-                <span class="k">Output</span>
-                <span class="v atrium-num" id="pipeOut">—</span>
+            <!-- Standard Flow (Off, SGSR, FSR1) -->
+            <div id="standardFlow">
+              <div class="flow">
+                <div class="pipe-node">
+                  <span class="k">Render</span>
+                  <span class="v atrium-num" id="pipeRender">—</span>
+                </div>
+                <span class="pipe-arrow">→</span>
+                <div class="pipe-node">
+                  <span class="k">Scaler</span>
+                  <span class="v" id="pipeScaler">OFF</span>
+                </div>
+                <span class="pipe-arrow">→</span>
+                <div class="pipe-node">
+                  <span class="k">Output</span>
+                  <span class="v atrium-num" id="pipeOut">—</span>
+                </div>
               </div>
             </div>
-            <div class="pipe-node">
-              <span class="k">RCAS</span>
+
+            <!-- Anime4K Multi-Stage Flow -->
+            <div id="anime4kFlow" hidden>
+              <div style="font-size:12px; font-weight:700; color:var(--atrium-text-secondary); margin-bottom:8px; display:flex; justify-content:space-between;">
+                <span>Active Shader Chain</span>
+                <span id="pipeScaleRatio" style="color:var(--atrium-accent); font-family:var(--atrium-font-mono);">1.50× Scale</span>
+              </div>
+              <div class="flow-v" id="a4kStagesList">
+                <!-- Dynamically populated stages -->
+              </div>
+            </div>
+
+            <!-- RCAS Post-Pass Node -->
+            <div class="pipe-node" style="margin-top:auto;">
+              <span class="k">RCAS Post-Pass</span>
               <span class="v atrium-num" id="pipeRcas">off</span>
             </div>
           </div>
@@ -223,6 +391,7 @@
       </div>
     </div>
   </div>
+
   <script>
     let state = {
       mode: 'off',
@@ -231,8 +400,18 @@
       sgsrEdgeSharpness: 2,
       sgsrUseEdgeDirection: true,
       rcasSharpnessStops: 0.2,
+      anime4kMode: 'a',
+      anime4kTier: 'm',
+      anime4kPlusA: false,
     };
+    let unthrottled = false;
     let host = { width: null, height: null, hostWidth: null, hostHeight: null };
+
+    const MODE_DESCS = {
+      a: 'Mode A (Restore → Upscale): Best for 1080p+ sources with compression blur or ringing.',
+      b: 'Mode B (Restore_Soft → Upscale): Tames aliasing & downsampling artifacts on 720p sources.',
+      c: 'Mode C (Upscale_Denoise): Denoise + upscale for 480p-class or retro sources.',
+    };
 
     function thrUnits() {
       return Math.round(state.sgsrEdgeThreshold * 2550) / 10;
@@ -241,44 +420,234 @@
     function scalerLabel() {
       if (state.mode === 'fsr1') return 'FSR 1.0';
       if (state.mode === 'sgsr') return 'SGSR 1.0';
+      if (state.mode === 'anime4k') {
+        const plusA = state.anime4kPlusA ? '+A' : '';
+        return `A4K ${state.anime4kMode.toUpperCase()}${plusA} (${state.anime4kTier.toUpperCase()})`;
+      }
       return 'OFF';
     }
 
+    function computeDimensions() {
+      const rw = host.width || 1280;
+      const rh = host.height || 720;
+      const ow = host.hostWidth || rw;
+      const oh = host.hostHeight || rh;
+      const ratioW = ow / rw;
+      const ratioH = oh / rh;
+      const ratio = Math.max(ratioW, ratioH);
+      return { rw, rh, ow, oh, ratioW, ratioH, ratio };
+    }
+
+    function renderPipelineGraph(dims) {
+      const { rw, rh, ow, oh, ratio } = dims;
+      const list = document.getElementById('a4kStagesList');
+      if (!list) return;
+
+      const tierU = (state.anime4kTier || 'm').toUpperCase();
+      const modeU = (state.anime4kMode || 'a').toUpperCase();
+
+      // In Anime4k upstream:
+      // AutoDownscalePre_x2 WHEN: OUTPUT.w / MAIN.w < 2.0 && OUTPUT.w / MAIN.w > 1.2
+      // AutoDownscalePre_x4 WHEN: OUTPUT.w / MAIN.w < 4.0 && OUTPUT.w / MAIN.w > 2.4
+      const x2Active = ratio > 1.2 && ratio < 2.0;
+      const x4Active = ratio > 2.4 && ratio < 4.0;
+
+      const stages = [];
+
+      // Pass 0: Initial Source & StatsMax
+      stages.push({
+        tag: 'Pass 0',
+        name: `Game Surface (${rw}×${rh})`,
+        status: 'Identity UV',
+        active: true,
+      });
+      stages.push({
+        tag: 'Clamp 1/2',
+        name: 'Clamp_Highlights (Kernel X+Y)',
+        status: 'STATSMAX',
+        active: true,
+      });
+
+      // Primary CNN Pass
+      if (state.anime4kMode === 'c') {
+        stages.push({
+          tag: 'CNN x2',
+          name: `Upscale_Denoise_CNN_x2_${tierU}`,
+          status: 'Active',
+          active: true,
+        });
+      } else {
+        const restPrefix = state.anime4kMode === 'b' ? 'Restore_CNN_Soft' : 'Restore_CNN';
+        stages.push({
+          tag: 'CNN Rest',
+          name: `${restPrefix}_${tierU}`,
+          status: 'Active',
+          active: true,
+        });
+        stages.push({
+          tag: 'CNN x2',
+          name: `Upscale_CNN_x2_${tierU}`,
+          status: 'Active',
+          active: true,
+        });
+      }
+
+      // Secondary +A Pass
+      if (state.anime4kPlusA) {
+        stages.push({
+          tag: 'Downscale x4',
+          name: 'AutoDownscalePre_x4',
+          status: x4Active ? 'Active' : 'Bypassed',
+          active: x4Active,
+          bypassed: !x4Active,
+        });
+        stages.push({
+          tag: 'CNN +A',
+          name: `Restore_CNN_${tierU}`,
+          status: 'Active',
+          active: true,
+        });
+        stages.push({
+          tag: 'CNN +A x2',
+          name: `Upscale_CNN_x2_${tierU}`,
+          status: 'Active',
+          active: true,
+        });
+      }
+
+      // Downscale x2
+      stages.push({
+        tag: 'Downscale x2',
+        name: 'AutoDownscalePre_x2',
+        status: x2Active ? 'Active' : 'Bypassed',
+        active: x2Active,
+        bypassed: !x2Active,
+      });
+
+      // Cleanup Pass
+      const cleanupPrefix = state.anime4kMode === 'b' ? 'Restore_CNN_Soft_S' : 'Restore_CNN_S';
+      stages.push({
+        tag: 'Cleanup',
+        name: cleanupPrefix,
+        status: 'Active',
+        active: true,
+      });
+
+      // Final Clamp Pass
+      stages.push({
+        tag: 'Clamp 3',
+        name: 'Clamp_Highlights (Apply)',
+        status: 'PREKERNEL',
+        active: true,
+      });
+
+      // Final Output Target
+      stages.push({
+        tag: 'Target',
+        name: `Framebuffer (${ow}×${oh})`,
+        status: `${ratio.toFixed(2)}×`,
+        active: true,
+      });
+
+      list.innerHTML = stages
+        .map(
+          (s) => `
+        <div class="flow-v-step ${s.bypassed ? 'bypassed' : 'active'}">
+          <span class="step-tag">${s.tag}</span>
+          <span class="step-name">${s.name}</span>
+          <span class="step-status">${s.status}</span>
+        </div>`
+        )
+        .join('');
+    }
+
     function render() {
+      // Upscaler Mode Segmented Control
       document.querySelectorAll('#modeSeg button').forEach((b) => {
         const on = b.dataset.mode === state.mode;
         b.classList.toggle('is-active', on);
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
+
+      // Visibility toggles
       document.getElementById('sgsrSection').hidden = state.mode !== 'sgsr';
+      document.getElementById('anime4kSection').hidden = state.mode !== 'anime4k';
+      document.getElementById('standardFlow').hidden = state.mode === 'anime4k';
+      document.getElementById('anime4kFlow').hidden = state.mode !== 'anime4k';
+
+      // Anime4K Controls
+      if (state.mode === 'anime4k') {
+        document.querySelectorAll('#a4kModeSeg button').forEach((b) => {
+          const on = b.dataset.a4kMode === state.anime4kMode;
+          b.classList.toggle('is-active', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        document.getElementById('a4kModeDesc').textContent =
+          MODE_DESCS[state.anime4kMode] || MODE_DESCS.a;
+
+        const isUnthrottled = unthrottled || state.anime4kTier === 'vl' || state.anime4kTier === 'ul';
+        document.getElementById('tierVL').hidden = !isUnthrottled;
+        document.getElementById('tierUL').hidden = !isUnthrottled;
+        const unthrottleBtn = document.getElementById('unthrottledToggle');
+        unthrottleBtn.classList.toggle('is-on', isUnthrottled);
+        unthrottleBtn.setAttribute('aria-checked', isUnthrottled ? 'true' : 'false');
+
+        document.querySelectorAll('#a4kTierSeg button').forEach((b) => {
+          const on = b.dataset.a4kTier === state.anime4kTier;
+          b.classList.toggle('is-active', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+
+        const plusABtn = document.getElementById('plusAToggle');
+        plusABtn.classList.toggle('is-on', !!state.anime4kPlusA);
+        plusABtn.setAttribute('aria-checked', state.anime4kPlusA ? 'true' : 'false');
+      }
+
+      // SGSR Controls
       const edge = document.getElementById('edgeDir');
       edge.classList.toggle('is-on', !!state.sgsrUseEdgeDirection);
       edge.setAttribute('aria-checked', state.sgsrUseEdgeDirection ? 'true' : 'false');
       document.getElementById('thrVal').textContent = thrUnits().toFixed(1);
       document.getElementById('sharpVal').textContent = Number(state.sgsrEdgeSharpness).toFixed(2);
+
+      // RCAS Controls
       const rcas = document.getElementById('rcasOn');
       rcas.classList.toggle('is-on', !!state.sharpenRcas);
       rcas.setAttribute('aria-checked', state.sharpenRcas ? 'true' : 'false');
       const rcasStops = Number(state.rcasSharpnessStops);
       document.getElementById('rcasVal').textContent = rcasStops.toFixed(2);
       const rcasT = Math.max(0, Math.min(1, rcasStops));
-      document.getElementById('rcasFill').style.width = (rcasT * 100) + '%';
-      document.getElementById('rcasThumb').style.left = (rcasT * 100) + '%';
+      document.getElementById('rcasFill').style.width = rcasT * 100 + '%';
+      document.getElementById('rcasThumb').style.left = rcasT * 100 + '%';
       document.getElementById('rcasSlider').setAttribute(
         'aria-valuenow',
         String(Math.round(rcasT * 100))
       );
 
-      const rw = host.width || '—';
-      const rh = host.height || '—';
-      const ow = host.hostWidth || rw;
-      const oh = host.hostHeight || rh;
+      // Dimensions & Ratio
+      const dims = computeDimensions();
+      const { rw, rh, ow, oh, ratio } = dims;
+
       document.getElementById('pipeRender').textContent = rw + '×' + rh;
       document.getElementById('pipeScaler').textContent = scalerLabel();
       document.getElementById('pipeOut').textContent = ow + '×' + oh;
       document.getElementById('pipeRcas').textContent = state.sharpenRcas
         ? Number(state.rcasSharpnessStops).toFixed(2)
         : 'off';
+
+      if (state.mode === 'anime4k') {
+        document.getElementById('pipeScaleRatio').textContent = `${ratio.toFixed(2)}× Scale`;
+        renderPipelineGraph(dims);
+
+        // Warning if +A is enabled but scale ratio < 2.0
+        const plusAWarning = document.getElementById('plusAWarning');
+        if (state.anime4kPlusA && ratio < 2.0) {
+          plusAWarning.hidden = false;
+          document.getElementById('currentScaleRatio').textContent = `${ratio.toFixed(2)}×`;
+        } else {
+          plusAWarning.hidden = true;
+        }
+      }
     }
 
     function push(partial) {
@@ -287,9 +656,32 @@
       if (window.AtriumPlugin) window.AtriumPlugin.send('upscale-set', partial);
     }
 
+    // Event listeners
     document.querySelectorAll('#modeSeg button').forEach((b) => {
       b.addEventListener('click', () => push({ mode: b.dataset.mode }));
     });
+
+    document.querySelectorAll('#a4kModeSeg button').forEach((b) => {
+      b.addEventListener('click', () => push({ anime4kMode: b.dataset.a4kMode }));
+    });
+
+    document.querySelectorAll('#a4kTierSeg button').forEach((b) => {
+      b.addEventListener('click', () => push({ anime4kTier: b.dataset.a4kTier }));
+    });
+
+    document.getElementById('unthrottledToggle').addEventListener('click', () => {
+      unthrottled = !unthrottled;
+      if (!unthrottled && (state.anime4kTier === 'vl' || state.anime4kTier === 'ul')) {
+        push({ anime4kTier: 'l' });
+      } else {
+        render();
+      }
+    });
+
+    document.getElementById('plusAToggle').addEventListener('click', () => {
+      push({ anime4kPlusA: !state.anime4kPlusA });
+    });
+
     document.getElementById('edgeDir').addEventListener('click', () => {
       push({ sgsrUseEdgeDirection: !state.sgsrUseEdgeDirection });
     });
@@ -308,6 +700,8 @@
     document.getElementById('sharpInc').addEventListener('click', () => {
       push({ sgsrEdgeSharpness: Math.min(4, +(state.sgsrEdgeSharpness + 0.1).toFixed(2)) });
     });
+
+    // RCAS Slider
     const rcasSlider = document.getElementById('rcasSlider');
     let rcasDragging = false;
     function clampRcas(v) {
@@ -372,15 +766,29 @@
     document.getElementById('rcasInc').addEventListener('click', () => {
       setRcas((Number(state.rcasSharpnessStops) || 0) + 0.05);
     });
+
+    // Quick Presets
     document.querySelectorAll('[data-preset]').forEach((b) => {
       b.addEventListener('click', () => {
         const p = b.dataset.preset;
         if (p === 'sharp') {
-          push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.05 });
+          if (state.mode === 'anime4k') {
+            push({ anime4kMode: 'a', anime4kTier: 'l', sharpenRcas: true, rcasSharpnessStops: 0.1 });
+          } else {
+            push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.05 });
+          }
         } else if (p === 'soft') {
-          push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.45 });
+          if (state.mode === 'anime4k') {
+            push({ anime4kMode: 'b', anime4kTier: 's', sharpenRcas: false });
+          } else {
+            push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.45 });
+          }
         } else {
-          push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.2 });
+          if (state.mode === 'anime4k') {
+            push({ anime4kMode: 'a', anime4kTier: 'm', sharpenRcas: true, rcasSharpnessStops: 0.2 });
+          } else {
+            push({ mode: 'fsr1', sharpenRcas: true, rcasSharpnessStops: 0.2 });
+          }
         }
       });
     });
@@ -388,6 +796,9 @@
     function onState(cfg) {
       if (!cfg || typeof cfg !== 'object') return;
       state = Object.assign({}, state, cfg);
+      if (state.anime4kTier === 'vl' || state.anime4kTier === 'ul') {
+        unthrottled = true;
+      }
       render();
     }
 
